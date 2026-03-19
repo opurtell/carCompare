@@ -12,6 +12,10 @@ interface AppContextValue {
   updateCar: (car: CarConfig) => void;
   setYears: (years: number) => void;
   setGlobalDefaults: (defaults: Partial<GlobalDefaults>) => void;
+  saveToLibrary: (car: CarConfig) => void;
+  addFromLibrary: (libraryId: string) => void;
+  updateLibraryEntry: (libraryId: string, config: CarConfig) => void;
+  removeFromLibrary: (libraryId: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -20,6 +24,7 @@ const defaultState: AppState = {
   cars: [],
   comparisonYears: 5,
   globalDefaults: DEFAULT_GLOBAL_DEFAULTS,
+  library: [],
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -41,8 +46,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setGlobalDefaults = (defaults: Partial<GlobalDefaults>) =>
     dispatch({ type: 'SET_GLOBAL_DEFAULTS', defaults });
 
+  const saveToLibrary = (car: CarConfig) =>
+    dispatch({ type: 'SAVE_TO_LIBRARY', car });
+  const addFromLibrary = (libraryId: string) =>
+    dispatch({ type: 'ADD_FROM_LIBRARY', libraryId });
+  const updateLibraryEntry = (libraryId: string, config: CarConfig) =>
+    dispatch({ type: 'UPDATE_LIBRARY_ENTRY', libraryId, config });
+  const removeFromLibrary = (libraryId: string) =>
+    dispatch({ type: 'REMOVE_FROM_LIBRARY', libraryId });
+
   return (
-    <AppContext.Provider value={{ state, dispatch, addCar, removeCar, updateCar, setYears, setGlobalDefaults }}>
+    <AppContext.Provider value={{
+      state, dispatch,
+      addCar, removeCar, updateCar, setYears, setGlobalDefaults,
+      saveToLibrary, addFromLibrary, updateLibraryEntry, removeFromLibrary,
+    }}>
       {children}
     </AppContext.Provider>
   );
