@@ -11,6 +11,8 @@ import { calculateCarResult } from '../calculations/costEngine';
 import { calculateActStampDuty } from '../calculations/actSpecific';
 import { createDefaultCarConfig } from '../data/defaults';
 import { resolveCarConfig } from '../utils/resolveCarConfig';
+import { useApp } from '../state/AppContext';
+import { isCarDirtyFromLibrary } from '../utils/isCarDirty';
 
 interface CarCardProps {
   car: CarConfig;
@@ -23,6 +25,10 @@ interface CarCardProps {
 
 export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate, onRemove }: CarCardProps) {
   const [costBreakdownOpen, setCostBreakdownOpen] = useState(false);
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
+  const { state, saveToLibrary, updateLibraryEntry } = useApp();
+  const isLinked = Boolean(car.libraryId);
+  const isDirty = isCarDirtyFromLibrary(car, state.library);
   const color = getCarColor(index);
   const autoStampDuty = calculateActStampDuty(car.fuelType, car.purchasePrice);
   const resolvedCar = resolveCarConfig(car, globalDefaults);
@@ -63,7 +69,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
 
   return (
     <div
-      className="w-80 shrink-0 rounded-xl border-2 bg-white shadow-sm flex flex-col"
+      className="w-80 shrink-0 rounded-xl border-2 bg-white shadow-sm flex flex-col relative"
       style={{ borderColor: color.hex }}
     >
       {/* Header */}
@@ -85,12 +91,44 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
           />
         </div>
         <button
-          onClick={() => onRemove(car.id)}
+          onClick={() => {
+            if (isLinked && isDirty) {
+              setConfirmingRemoval(true);
+            } else {
+              onRemove(car.id);
+            }
+          }}
           className="text-gray-400 hover:text-red-500 text-lg leading-none"
           title="Remove car"
         >
           &times;
         </button>
+      </div>
+
+      {/* Library actions */}
+      <div className="px-4 pt-2 flex items-center gap-2 flex-wrap">
+        {!isLinked ? (
+          <button
+            onClick={() => saveToLibrary(car)}
+            className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500
+                       hover:bg-blue-50 hover:text-blue-600 border border-gray-200"
+          >
+            Save to library
+          </button>
+        ) : (
+          <span className="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+            ✓ Saved to library
+          </span>
+        )}
+        {isLinked && isDirty && (
+          <button
+            onClick={() => updateLibraryEntry(car.libraryId!, car)}
+            className="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700
+                       hover:bg-amber-100 border border-amber-200"
+          >
+            Update library entry
+          </button>
+        )}
       </div>
 
       <div className="px-4 py-2 flex flex-col gap-1 overflow-y-auto flex-1">
@@ -393,6 +431,40 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
           </div>
         )}
       </div>
+
+      {/* Removal confirmation */}
+      {confirmingRemoval && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/95 p-4">
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 w-full">
+            <p className="text-sm font-medium text-amber-900 mb-3">
+              Save changes back to library before removing?
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  updateLibraryEntry(car.libraryId!, car);
+                  onRemove(car.id);
+                }}
+                className="text-xs px-3 py-1.5 rounded bg-green-700 text-white hover:bg-green-800"
+              >
+                Yes, update library
+              </button>
+              <button
+                onClick={() => onRemove(car.id)}
+                className="text-xs px-3 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                No, just remove
+              </button>
+              <button
+                onClick={() => setConfirmingRemoval(false)}
+                className="text-xs px-3 py-1.5 rounded text-gray-400 hover:text-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
