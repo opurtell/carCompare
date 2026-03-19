@@ -21,6 +21,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'LOAD_STATE':
       return action.state;
 
+    case 'SET_GLOBAL_DEFAULTS':
+      return { ...state, globalDefaults: { ...state.globalDefaults, ...action.defaults } };
+
     default:
       return state;
   }

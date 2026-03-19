@@ -1,4 +1,4 @@
-import type { CarConfig, FuelType } from '../types/car';
+import type { CarConfig, FuelType, GlobalDefaults } from '../types/car';
 
 export const ACT_DEFAULTS = {
   regoPerYear: 360,
@@ -45,6 +45,12 @@ const FUEL_TYPE_DEFAULTS: Record<FuelType, Partial<CarConfig>> = {
   },
 };
 
+export const DEFAULT_GLOBAL_DEFAULTS: GlobalDefaults = {
+  petrolPrice: ACT_DEFAULTS.petrolPrice,
+  electricityPrice: ACT_DEFAULTS.electricityPrice,
+  annualKm: ACT_DEFAULTS.annualKm,
+};
+
 let counter = 0;
 
 export function createDefaultCarConfig(fuelType: FuelType = 'ev'): CarConfig {
@@ -76,6 +82,10 @@ export function createDefaultCarConfig(fuelType: FuelType = 'ev'): CarConfig {
     interestRate: 7,
     loanTermYears: 5,
     stampDuty: 0,
+    useCustomStampDuty: false,
+    useCustomPetrolPrice: false,
+    useCustomElectricityPrice: false,
+    useCustomAnnualKm: false,
     ...fuelDefaults,
   };
 }

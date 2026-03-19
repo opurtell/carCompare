@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { AppState } from '../types/car';
+import { DEFAULT_GLOBAL_DEFAULTS } from '../data/defaults';
 
 const STORAGE_KEY = 'carCompare_v1';
 const DEBOUNCE_MS = 500;
@@ -8,7 +9,19 @@ export function loadState(): AppState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as AppState;
+    const parsed = JSON.parse(raw) as AppState;
+    if (!parsed.globalDefaults) {
+      parsed.globalDefaults = DEFAULT_GLOBAL_DEFAULTS;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    parsed.cars = parsed.cars.map((car: any) => ({
+      ...car,
+      useCustomStampDuty: car.useCustomStampDuty ?? false,
+      useCustomPetrolPrice: car.useCustomPetrolPrice ?? false,
+      useCustomElectricityPrice: car.useCustomElectricityPrice ?? false,
+      useCustomAnnualKm: car.useCustomAnnualKm ?? false,
+    }));
+    return parsed;
   } catch {
     return null;
   }

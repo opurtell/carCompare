@@ -2,16 +2,18 @@ import { Header } from './components/Header';
 import { CarCardList } from './components/CarCardList';
 import { ComparisonDashboard } from './components/ComparisonDashboard';
 import { Footer } from './components/Footer';
+import { GlobalSettingsPanel } from './components/GlobalSettingsPanel';
 import { useApp } from './state/AppContext';
 import { useCarCalculations } from './hooks/useCarCalculations';
 
 function App() {
   const { state } = useApp();
-  const results = useCarCalculations(state.cars, state.comparisonYears);
+  const results = useCarCalculations(state.cars, state.comparisonYears, state.globalDefaults);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
+      <GlobalSettingsPanel />
 
       <main className="flex-1 flex flex-col gap-8 py-6">
         {/* Zone 1: Car Configuration */}

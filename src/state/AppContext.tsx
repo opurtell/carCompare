@@ -1,7 +1,8 @@
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, AppAction, CarConfig } from '../types/car';
+import type { AppState, AppAction, CarConfig, GlobalDefaults } from '../types/car';
 import { appReducer } from './appReducer';
 import { loadState, useLocalStorageSync } from '../hooks/useLocalStorage';
+import { DEFAULT_GLOBAL_DEFAULTS } from '../data/defaults';
 
 interface AppContextValue {
   state: AppState;
@@ -10,6 +11,7 @@ interface AppContextValue {
   removeCar: (carId: string) => void;
   updateCar: (car: CarConfig) => void;
   setYears: (years: number) => void;
+  setGlobalDefaults: (defaults: Partial<GlobalDefaults>) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -17,6 +19,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 const defaultState: AppState = {
   cars: [],
   comparisonYears: 5,
+  globalDefaults: DEFAULT_GLOBAL_DEFAULTS,
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -35,9 +38,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeCar = (carId: string) => dispatch({ type: 'REMOVE_CAR', carId });
   const updateCar = (car: CarConfig) => dispatch({ type: 'UPDATE_CAR', car });
   const setYears = (years: number) => dispatch({ type: 'SET_YEARS', years });
+  const setGlobalDefaults = (defaults: Partial<GlobalDefaults>) =>
+    dispatch({ type: 'SET_GLOBAL_DEFAULTS', defaults });
 
   return (
-    <AppContext.Provider value={{ state, dispatch, addCar, removeCar, updateCar, setYears }}>
+    <AppContext.Provider value={{ state, dispatch, addCar, removeCar, updateCar, setYears, setGlobalDefaults }}>
       {children}
     </AppContext.Provider>
   );

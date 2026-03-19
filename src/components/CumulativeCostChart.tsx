@@ -25,10 +25,11 @@ export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
   for (let y = 0; y <= years; y++) {
     const point: Record<string, number | string> = { year: y === 0 ? 'Start' : `Year ${y}` };
     for (const r of results) {
+      const upfrontCost = r.purchasePrice + r.stampDuty;
       if (y === 0) {
-        point[r.carName] = r.stampDuty;
+        point[r.carName] = upfrontCost;
       } else {
-        point[r.carName] = r.yearlyBreakdowns[y - 1].cumulativeTotal + r.stampDuty;
+        point[r.carName] = r.yearlyBreakdowns[y - 1].cumulativeTotal + upfrontCost;
       }
     }
     data.push(point);

@@ -9,7 +9,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { CarCalculationResult } from '../types/car';
-import { getCarColor } from '../utils/colors';
 import { formatCurrency } from '../utils/formatters';
 
 interface AnnualBreakdownChartProps {
@@ -30,7 +29,7 @@ export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
   if (results.length < 1) return null;
 
   // Build data: one group per car, stacked by category (year 1 average annual)
-  const data = results.map((r, i) => {
+  const data = results.map((r) => {
     const totals = r.yearlyBreakdowns.reduce(
       (acc, y) => {
         acc.fuel += y.fuel;
@@ -48,7 +47,6 @@ export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
     const years = r.yearlyBreakdowns.length;
     return {
       name: r.carName,
-      fill: getCarColor(i).hex,
       fuel: totals.fuel / years,
       servicing: totals.servicing / years,
       insurance: totals.insurance / years,

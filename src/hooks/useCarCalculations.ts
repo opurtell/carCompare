@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
-import type { CarConfig, CarCalculationResult } from '../types/car';
+import type { CarConfig, CarCalculationResult, GlobalDefaults } from '../types/car';
 import { calculateCarResult } from '../calculations/costEngine';
+import { resolveCarConfig } from '../utils/resolveCarConfig';
 
 export function useCarCalculations(
   cars: CarConfig[],
-  years: number
+  years: number,
+  globalDefaults: GlobalDefaults,
 ): CarCalculationResult[] {
   return useMemo(
-    () => cars.map(car => calculateCarResult(car, years)),
-    [cars, years]
+    () => cars.map(car => calculateCarResult(resolveCarConfig(car, globalDefaults), years)),
+    [cars, years, globalDefaults]
   );
 }

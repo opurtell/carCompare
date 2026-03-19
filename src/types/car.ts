@@ -28,6 +28,10 @@ export interface CarConfig {
   interestRate: number;
   loanTermYears: number;
   stampDuty: number;
+  useCustomStampDuty: boolean;
+  useCustomPetrolPrice: boolean;
+  useCustomElectricityPrice: boolean;
+  useCustomAnnualKm: boolean;
 }
 
 export interface YearlyCostBreakdown {
@@ -49,12 +53,20 @@ export interface CarCalculationResult {
   carName: string;
   yearlyBreakdowns: YearlyCostBreakdown[];
   stampDuty: number;
+  purchasePrice: number;
   totalCostOfOwnership: number;
+}
+
+export interface GlobalDefaults {
+  petrolPrice: number;
+  electricityPrice: number;
+  annualKm: number;
 }
 
 export interface AppState {
   cars: CarConfig[];
   comparisonYears: number;
+  globalDefaults: GlobalDefaults;
 }
 
 export type AppAction =
@@ -62,4 +74,5 @@ export type AppAction =
   | { type: 'REMOVE_CAR'; carId: string }
   | { type: 'UPDATE_CAR'; car: CarConfig }
   | { type: 'SET_YEARS'; years: number }
-  | { type: 'LOAD_STATE'; state: AppState };
+  | { type: 'LOAD_STATE'; state: AppState }
+  | { type: 'SET_GLOBAL_DEFAULTS'; defaults: Partial<GlobalDefaults> };

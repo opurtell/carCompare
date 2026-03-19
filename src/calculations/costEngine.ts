@@ -109,7 +109,9 @@ export function calculateCarResult(
   years: number
 ): CarCalculationResult {
   const yearlyBreakdowns = calculateYearlyCosts(car, years);
-  const stampDuty = calculateActStampDuty(car.fuelType, car.purchasePrice);
+  const stampDuty = car.useCustomStampDuty
+    ? car.stampDuty
+    : calculateActStampDuty(car.fuelType, car.purchasePrice);
   const totalRunning = yearlyBreakdowns[yearlyBreakdowns.length - 1]?.cumulativeTotal ?? 0;
   const totalCostOfOwnership = stampDuty + totalRunning;
 
@@ -118,6 +120,7 @@ export function calculateCarResult(
     carName: car.name,
     yearlyBreakdowns,
     stampDuty,
+    purchasePrice: car.purchasePrice,
     totalCostOfOwnership,
   };
 }

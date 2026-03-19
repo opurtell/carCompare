@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CarConfig, FuelType } from '../types/car';
+import type { CarConfig, FuelType, GlobalDefaults } from '../types/car';
 import { NumberInput } from './ui/NumberInput';
 import { SliderInput } from './ui/SliderInput';
 import { ToggleSwitch } from './ui/ToggleSwitch';
@@ -8,20 +8,25 @@ import { Section } from './ui/Section';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
 import { calculateCarResult } from '../calculations/costEngine';
+import { calculateActStampDuty } from '../calculations/actSpecific';
 import { createDefaultCarConfig } from '../data/defaults';
+import { resolveCarConfig } from '../utils/resolveCarConfig';
 
 interface CarCardProps {
   car: CarConfig;
   index: number;
   comparisonYears: number;
+  globalDefaults: GlobalDefaults;
   onUpdate: (car: CarConfig) => void;
   onRemove: (carId: string) => void;
 }
 
-export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: CarCardProps) {
+export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate, onRemove }: CarCardProps) {
   const [costBreakdownOpen, setCostBreakdownOpen] = useState(false);
   const color = getCarColor(index);
-  const result = calculateCarResult(car, comparisonYears);
+  const autoStampDuty = calculateActStampDuty(car.fuelType, car.purchasePrice);
+  const resolvedCar = resolveCarConfig(car, globalDefaults);
+  const result = calculateCarResult(resolvedCar, comparisonYears);
 
   const runningCosts = result.yearlyBreakdowns.reduce(
     (sum, yr) => sum + yr.fuel + yr.servicing + yr.insurance + yr.ctp + yr.registration + yr.loanInterest,
@@ -47,6 +52,7 @@ export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: Car
       phevElectricPercent: defaults.phevElectricPercent,
       servicingCostPerYear: defaults.servicingCostPerYear,
       stampDuty: defaults.stampDuty,
+      useCustomStampDuty: false,
       evFreeRegoYears: defaults.evFreeRegoYears,
     });
   }
@@ -105,11 +111,21 @@ export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: Car
           />
           <NumberInput
             label="Stamp Duty"
-            value={car.stampDuty}
-            onChange={v => update({ stampDuty: v })}
+            value={car.useCustomStampDuty ? car.stampDuty : autoStampDuty}
+            onChange={v => update({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
-            tooltip={car.fuelType === 'ev' ? 'EVs are exempt from stamp duty in ACT' : undefined}
+            tooltip={car.fuelType === 'ev' ? 'EVs are exempt from stamp duty in ACT' : 'Auto-calculated from purchase price. Edit to override.'}
           />
+          {car.useCustomStampDuty && (
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => update({ useCustomStampDuty: false })}
+                className="text-xs text-blue-500 hover:text-blue-700"
+              >
+                Reset to auto
+              </button>
+            </div>
+          )}
           <ToggleSwitch
             label="Car Loan"
             checked={car.hasLoan}
@@ -150,12 +166,22 @@ export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: Car
             <>
               <NumberInput
                 label="Petrol Price"
-                value={car.petrolPrice}
-                onChange={v => update({ petrolPrice: v })}
+                value={car.useCustomPetrolPrice ? car.petrolPrice : globalDefaults.petrolPrice}
+                onChange={v => update({ petrolPrice: v, useCustomPetrolPrice: true })}
                 prefix="$"
                 suffix="/L"
                 step={0.05}
               />
+              {car.useCustomPetrolPrice && (
+                <div className="flex justify-end -mt-1">
+                  <button
+                    onClick={() => update({ useCustomPetrolPrice: false })}
+                    className="text-xs text-blue-500 hover:text-blue-700"
+                  >
+                    Reset to global
+                  </button>
+                </div>
+              )}
               <NumberInput
                 label="Petrol Consumption"
                 value={car.petrolConsumption}
@@ -169,12 +195,22 @@ export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: Car
             <>
               <NumberInput
                 label="Electricity Price"
-                value={car.electricityPrice}
-                onChange={v => update({ electricityPrice: v })}
+                value={car.useCustomElectricityPrice ? car.electricityPrice : globalDefaults.electricityPrice}
+                onChange={v => update({ electricityPrice: v, useCustomElectricityPrice: true })}
                 prefix="$"
                 suffix="/kWh"
                 step={0.01}
               />
+              {car.useCustomElectricityPrice && (
+                <div className="flex justify-end -mt-1">
+                  <button
+                    onClick={() => update({ useCustomElectricityPrice: false })}
+                    className="text-xs text-blue-500 hover:text-blue-700"
+                  >
+                    Reset to global
+                  </button>
+                </div>
+              )}
               <NumberInput
                 label="Electric Consumption"
                 value={car.electricConsumption}
@@ -225,12 +261,22 @@ export function CarCard({ car, index, comparisonYears, onUpdate, onRemove }: Car
         <Section title="Driving">
           <NumberInput
             label="Annual Km"
-            value={car.annualKm}
-            onChange={v => update({ annualKm: v })}
+            value={car.useCustomAnnualKm ? car.annualKm : globalDefaults.annualKm}
+            onChange={v => update({ annualKm: v, useCustomAnnualKm: true })}
             suffix="km"
             step={1000}
             min={0}
           />
+          {car.useCustomAnnualKm && (
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => update({ useCustomAnnualKm: false })}
+                className="text-xs text-blue-500 hover:text-blue-700"
+              >
+                Reset to global
+              </button>
+            </div>
+          )}
         </Section>
 
         {/* Ongoing Costs */}

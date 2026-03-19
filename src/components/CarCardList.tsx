@@ -13,6 +13,7 @@ export function CarCardList() {
           car={car}
           index={index}
           comparisonYears={state.comparisonYears}
+          globalDefaults={state.globalDefaults}
           onUpdate={updateCar}
           onRemove={removeCar}
         />
