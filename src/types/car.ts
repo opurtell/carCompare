@@ -32,6 +32,14 @@ export interface CarConfig {
   useCustomPetrolPrice: boolean;
   useCustomElectricityPrice: boolean;
   useCustomAnnualKm: boolean;
+  libraryId?: string;
+}
+
+export interface LibraryCar {
+  id: string;
+  name: string;
+  savedAt: number;
+  config: CarConfig;
 }
 
 export interface YearlyCostBreakdown {
@@ -67,6 +75,7 @@ export interface AppState {
   cars: CarConfig[];
   comparisonYears: number;
   globalDefaults: GlobalDefaults;
+  library: LibraryCar[];
 }
 
 export type AppAction =
@@ -75,4 +84,8 @@ export type AppAction =
   | { type: 'UPDATE_CAR'; car: CarConfig }
   | { type: 'SET_YEARS'; years: number }
   | { type: 'LOAD_STATE'; state: AppState }
-  | { type: 'SET_GLOBAL_DEFAULTS'; defaults: Partial<GlobalDefaults> };
+  | { type: 'SET_GLOBAL_DEFAULTS'; defaults: Partial<GlobalDefaults> }
+  | { type: 'SAVE_TO_LIBRARY'; car: CarConfig }
+  | { type: 'UPDATE_LIBRARY_ENTRY'; libraryId: string; config: CarConfig }
+  | { type: 'REMOVE_FROM_LIBRARY'; libraryId: string }
+  | { type: 'ADD_FROM_LIBRARY'; libraryId: string };
