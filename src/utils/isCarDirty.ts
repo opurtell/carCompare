@@ -16,7 +16,7 @@ export function isCarDirtyFromLibrary(
 
   const normalize = (c: CarConfig) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { libraryId: _lid, ...rest } = c;
+    const { libraryId: _lid, id: _id, ...rest } = c;
     return rest;
   };
 
