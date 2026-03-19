@@ -1,6 +1,7 @@
 import type { CarCalculationResult } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
+import { useApp } from '../state/AppContext';
 
 interface TotalCostTableProps {
   results: CarCalculationResult[];
@@ -24,7 +25,16 @@ const ROWS: RowDef[] = [
 ];
 
 export function TotalCostTable({ results }: TotalCostTableProps) {
+  const { state: { showDepreciation } } = useApp();
   if (results.length < 2) return null;
+
+  const rows = showDepreciation
+    ? ROWS
+    : ROWS.filter(r => r.label !== 'Depreciation').map(r =>
+        r.label === 'Total'
+          ? { ...r, getValue: (res: CarCalculationResult) => res.totalCostOfOwnership - res.yearlyBreakdowns.reduce((s, y) => s + y.depreciation, 0) }
+          : r,
+      );
 
   return (
     <div className="overflow-x-auto">
@@ -40,7 +50,7 @@ export function TotalCostTable({ results }: TotalCostTableProps) {
           </tr>
         </thead>
         <tbody>
-          {ROWS.map(row => {
+          {rows.map(row => {
             const values = results.map(r => row.getValue(r));
             const minVal = Math.min(...values);
             const isTotal = row.label === 'Total';

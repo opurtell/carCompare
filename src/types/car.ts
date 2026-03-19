@@ -76,6 +76,7 @@ export interface AppState {
   comparisonYears: number;
   globalDefaults: GlobalDefaults;
   library: LibraryCar[];
+  showDepreciation: boolean;
 }
 
 export type AppAction =
@@ -88,4 +89,5 @@ export type AppAction =
   | { type: 'SAVE_TO_LIBRARY'; car: CarConfig }
   | { type: 'UPDATE_LIBRARY_ENTRY'; libraryId: string; config: CarConfig }
   | { type: 'REMOVE_FROM_LIBRARY'; libraryId: string }
-  | { type: 'ADD_FROM_LIBRARY'; libraryId: string };
+  | { type: 'ADD_FROM_LIBRARY'; libraryId: string }
+  | { type: 'TOGGLE_DEPRECIATION' };

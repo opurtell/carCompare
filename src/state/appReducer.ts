@@ -57,6 +57,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         library: state.library.filter(e => e.id !== action.libraryId),
       };
 
+    case 'TOGGLE_DEPRECIATION':
+      return { ...state, showDepreciation: !state.showDepreciation };
+
     case 'ADD_FROM_LIBRARY': {
       if (state.cars.length >= 5) return state;
       const source = state.library.find(e => e.id === action.libraryId);

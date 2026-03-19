@@ -11,12 +11,16 @@ import {
 import type { CarCalculationResult } from '../types/car';
 import { getCarColor } from '../utils/colors';
 import { formatCurrency } from '../utils/formatters';
+import { useApp } from '../state/AppContext';
 
 interface CumulativeCostChartProps {
   results: CarCalculationResult[];
 }
 
+const RUNNING_FIELDS = ['fuel', 'servicing', 'insurance', 'ctp', 'registration', 'loanInterest'] as const;
+
 export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
+  const { state: { showDepreciation } } = useApp();
   if (results.length < 2) return null;
 
   const years = results[0].yearlyBreakdowns.length;
@@ -28,8 +32,13 @@ export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
       const upfrontCost = r.purchasePrice + r.stampDuty;
       if (y === 0) {
         point[r.carName] = upfrontCost;
-      } else {
+      } else if (showDepreciation) {
         point[r.carName] = r.yearlyBreakdowns[y - 1].cumulativeTotal + upfrontCost;
+      } else {
+        const runningTotal = r.yearlyBreakdowns
+          .slice(0, y)
+          .reduce((sum, yr) => sum + RUNNING_FIELDS.reduce((s, f) => s + yr[f], 0), 0);
+        point[r.carName] = runningTotal + upfrontCost;
       }
     }
     data.push(point);

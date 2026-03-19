@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import type { CarCalculationResult } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
+import { useApp } from '../state/AppContext';
 
 interface AnnualBreakdownChartProps {
   results: CarCalculationResult[];
@@ -26,7 +27,12 @@ const COST_CATEGORIES = [
 ] as const;
 
 export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
+  const { state: { showDepreciation } } = useApp();
   if (results.length < 1) return null;
+
+  const categories = showDepreciation
+    ? COST_CATEGORIES
+    : COST_CATEGORIES.filter(c => c.key !== 'depreciation');
 
   // Build data: one group per car, stacked by category (year 1 average annual)
   const data = results.map((r) => {
@@ -73,7 +79,7 @@ export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
             contentStyle={{ fontSize: 13 }}
           />
           <Legend />
-          {COST_CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <Bar
               key={cat.key}
               dataKey={cat.key}

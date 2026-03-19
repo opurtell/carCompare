@@ -27,6 +27,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
   const [costBreakdownOpen, setCostBreakdownOpen] = useState(false);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const { state, saveToLibrary, updateLibraryEntry } = useApp();
+  const { showDepreciation } = state;
   const isLinked = Boolean(car.libraryId);
   const isDirty = isCarDirtyFromLibrary(car, state.library);
   const color = getCarColor(index);
@@ -42,7 +43,8 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
   const inputCost = purchaseCost + runningCosts;
   const totalDepreciation = result.yearlyBreakdowns.reduce((sum, yr) => sum + yr.depreciation, 0);
   const resaleValue = result.yearlyBreakdowns[result.yearlyBreakdowns.length - 1]?.vehicleValue ?? 0;
-  const netPositionAtResale = resaleValue - inputCost;
+  const displayedTotal = showDepreciation ? result.totalCostOfOwnership : result.totalCostOfOwnership - totalDepreciation;
+  const netPositionAtResale = showDepreciation ? resaleValue - inputCost : car.purchasePrice - inputCost;
 
   function update(partial: Partial<CarConfig>) {
     onUpdate({ ...car, ...partial });
@@ -376,15 +378,16 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
 
       {/* Summary badge */}
       <div
-        className="px-4 py-3 border-t rounded-b-lg"
+        className="px-4 py-4 border-t rounded-b-lg"
         style={{ backgroundColor: color.bg, borderColor: color.hex + '33' }}
+        aria-label={`${comparisonYears} year costs: Total Cost ${formatCurrency(result.totalCostOfOwnership)}. Net at Resale: ${netPositionAtResale < 0 ? 'negative' : netPositionAtResale > 0 ? 'positive' : 'zero'} ${formatCurrency(netPositionAtResale)}`}
       >
         <div className="text-center">
           <div className="text-xs text-gray-500 uppercase tracking-wider">
             {comparisonYears}yr Total Cost
           </div>
           <div className="text-xl font-bold" style={{ color: color.hex }}>
-            {formatCurrency(result.totalCostOfOwnership)}
+            {formatCurrency(displayedTotal)}
           </div>
         </div>
         <button
@@ -416,14 +419,18 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
               <span className="text-gray-400">Running Costs</span>
               <span className="text-gray-500">{formatCurrency(runningCosts)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Depreciation</span>
-              <span className="font-medium text-gray-800">{formatCurrency(totalDepreciation)}</span>
-            </div>
-            <div className="flex justify-between pl-3">
-              <span className="text-gray-400">Remaining Value</span>
-              <span className="text-gray-500">{formatCurrency(resaleValue)}</span>
-            </div>
+            {showDepreciation && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Depreciation</span>
+                  <span className="font-medium text-gray-800">{formatCurrency(totalDepreciation)}</span>
+                </div>
+                <div className="flex justify-between pl-3">
+                  <span className="text-gray-400">Remaining Value</span>
+                  <span className="text-gray-500">{formatCurrency(resaleValue)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-600">Net at Resale</span>
               <span className="font-medium text-red-600">{formatCurrency(netPositionAtResale)}</span>

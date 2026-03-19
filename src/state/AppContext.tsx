@@ -16,6 +16,7 @@ interface AppContextValue {
   addFromLibrary: (libraryId: string) => void;
   updateLibraryEntry: (libraryId: string, config: CarConfig) => void;
   removeFromLibrary: (libraryId: string) => void;
+  toggleDepreciation: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -25,11 +26,13 @@ const defaultState: AppState = {
   comparisonYears: 5,
   globalDefaults: DEFAULT_GLOBAL_DEFAULTS,
   library: [],
+  showDepreciation: true,
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, defaultState, () => {
-    return loadState() ?? defaultState;
+    const loaded = loadState();
+    return loaded ? { ...defaultState, ...loaded } : defaultState;
   });
 
   useLocalStorageSync(state);
@@ -54,12 +57,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_LIBRARY_ENTRY', libraryId, config });
   const removeFromLibrary = (libraryId: string) =>
     dispatch({ type: 'REMOVE_FROM_LIBRARY', libraryId });
+  const toggleDepreciation = () => dispatch({ type: 'TOGGLE_DEPRECIATION' });
 
   return (
     <AppContext.Provider value={{
       state, dispatch,
       addCar, removeCar, updateCar, setYears, setGlobalDefaults,
       saveToLibrary, addFromLibrary, updateLibraryEntry, removeFromLibrary,
+      toggleDepreciation,
     }}>
       {children}
     </AppContext.Provider>
