@@ -3,15 +3,28 @@ import { useApp } from '../state/AppContext';
 import { CarCard } from './CarCard';
 import { createDefaultCarConfig } from '../data/defaults';
 import { LibraryModal } from './LibraryModal';
+import { AddCarModal } from './AddCarModal';
 
 export function CarCardList() {
   const { state, addCar, updateCar, removeCar } = useApp();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [addCarModalOpen, setAddCarModalOpen] = useState(false);
 
   return (
     <>
-      {/* Library button row */}
-      <div className="flex justify-end px-4 pb-2">
+      {/* Library and AI Add button row */}
+      <div className="flex justify-end px-4 pb-2 gap-2">
+        <button
+          onClick={() => setAddCarModalOpen(true)}
+          disabled={state.cars.length >= 5}
+          className="text-xs px-3 py-1.5 rounded-md bg-purple-50 text-purple-700
+                     hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
+                     disabled:opacity-40 disabled:cursor-not-allowed"
+          title={state.cars.length >= 5 ? 'Comparison is full (5 cars max)' : 'AI-powered car research'}
+        >
+          <span>✨</span>
+          <span>AI Add</span>
+        </button>
         <button
           onClick={() => setLibraryOpen(true)}
           className="text-xs px-3 py-1.5 rounded-md bg-gray-100 text-gray-600
@@ -55,6 +68,7 @@ export function CarCardList() {
       </div>
 
       {libraryOpen && <LibraryModal onClose={() => setLibraryOpen(false)} />}
+      {addCarModalOpen && <AddCarModal onClose={() => setAddCarModalOpen(false)} />}
     </>
   );
 }
