@@ -13,6 +13,9 @@ export function loadState(): AppState | null {
     if (!parsed.globalDefaults) {
       parsed.globalDefaults = DEFAULT_GLOBAL_DEFAULTS;
     }
+    if (!parsed.library) {
+      parsed.library = [];
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parsed.cars = parsed.cars.map((car: any) => ({
       ...car,
