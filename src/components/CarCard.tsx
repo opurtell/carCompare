@@ -43,7 +43,6 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
   const inputCost = purchaseCost + runningCosts;
   const totalDepreciation = result.yearlyBreakdowns.reduce((sum, yr) => sum + yr.depreciation, 0);
   const resaleValue = result.yearlyBreakdowns[result.yearlyBreakdowns.length - 1]?.vehicleValue ?? 0;
-  const displayedTotal = showDepreciation ? result.totalCostOfOwnership : result.totalCostOfOwnership - totalDepreciation;
   const netPositionAtResale = showDepreciation ? resaleValue - inputCost : car.purchasePrice - inputCost;
 
   function update(partial: Partial<CarConfig>) {
@@ -462,7 +461,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
                       ? '#dc2626' // red-600
                       : netPositionAtResale > 0
                         ? '#16a34a' // green-600
-                        : undefined, // Use default text color
+                        : color.hex,
                 }}
               >
                 {formatCurrency(netPositionAtResale)}
