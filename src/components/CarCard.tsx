@@ -382,17 +382,38 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         style={{ backgroundColor: color.bg, borderColor: color.hex + '33' }}
         aria-label={`${comparisonYears} year costs: Total Cost ${formatCurrency(result.totalCostOfOwnership)}. Net at Resale: ${netPositionAtResale < 0 ? 'negative' : netPositionAtResale > 0 ? 'positive' : 'zero'} ${formatCurrency(netPositionAtResale)}`}
       >
-        <div className="text-center">
-          <div className="text-xs text-gray-500 uppercase tracking-wider">
-            {comparisonYears}yr Total Cost
+        <div className="space-y-1 text-center">
+          {/* Total Cost */}
+          <div className="flex items-baseline justify-center gap-1.5">
+            <span className="text-xs text-gray-600">Total outlay:</span>
+            <span className="text-xl font-bold" style={{ color: color.hex }}>
+              {formatCurrency(result.totalCostOfOwnership)}
+            </span>
           </div>
-          <div className="text-xl font-bold" style={{ color: color.hex }}>
-            {formatCurrency(displayedTotal)}
+
+          {/* Net at Resale */}
+          <div className="flex items-baseline justify-center gap-1.5">
+            <span className="text-xs text-gray-600">Net at Resale:</span>
+            <span
+              className="text-xl font-bold"
+              style={{
+                color:
+                  netPositionAtResale < 0
+                    ? '#dc2626' // red-600
+                    : netPositionAtResale > 0
+                      ? '#16a34a' // green-600
+                      : color.hex,
+              }}
+            >
+              {formatCurrency(netPositionAtResale)}
+            </span>
           </div>
         </div>
         <button
           onClick={() => setCostBreakdownOpen(o => !o)}
-          className="w-full flex items-center justify-center gap-1 mt-1 text-xs text-gray-500 hover:text-gray-700"
+          className="w-full flex items-center justify-center gap-1 mt-2 text-xs text-gray-500 hover:text-gray-700"
+          aria-expanded={costBreakdownOpen}
+          aria-controls={`breakdown-${car.id}`}
         >
           <span>Breakdown</span>
           <svg
@@ -406,7 +427,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
           </svg>
         </button>
         {costBreakdownOpen && (
-          <div className="mt-2 space-y-1 text-sm">
+          <div id={`breakdown-${car.id}`} className="mt-2 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Input Cost</span>
               <span className="font-medium text-gray-800">{formatCurrency(inputCost)}</span>
@@ -433,7 +454,19 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
             )}
             <div className="flex justify-between">
               <span className="text-gray-600">Net at Resale</span>
-              <span className="font-medium text-red-600">{formatCurrency(netPositionAtResale)}</span>
+              <span
+                className="font-medium"
+                style={{
+                  color:
+                    netPositionAtResale < 0
+                      ? '#dc2626' // red-600
+                      : netPositionAtResale > 0
+                        ? '#16a34a' // green-600
+                        : undefined, // Use default text color
+                }}
+              >
+                {formatCurrency(netPositionAtResale)}
+              </span>
             </div>
           </div>
         )}
