@@ -379,14 +379,14 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
       <div
         className="px-4 py-4 border-t rounded-b-lg"
         style={{ backgroundColor: color.bg, borderColor: color.hex + '33' }}
-        aria-label={`${comparisonYears} year costs: Total Cost ${formatCurrency(result.totalCostOfOwnership)}. Net at Resale: ${netPositionAtResale < 0 ? 'negative' : netPositionAtResale > 0 ? 'positive' : 'zero'} ${formatCurrency(netPositionAtResale)}`}
+        aria-label={`${comparisonYears} year costs: Total outlay ${formatCurrency(inputCost)}. Net at Resale: ${netPositionAtResale < 0 ? 'negative' : netPositionAtResale > 0 ? 'positive' : 'zero'} ${formatCurrency(netPositionAtResale)}`}
       >
         <div className="space-y-1 text-center">
           {/* Total Cost */}
           <div className="flex items-baseline justify-center gap-1.5">
             <span className="text-xs text-gray-600">Total outlay:</span>
             <span className="text-xl font-bold" style={{ color: color.hex }}>
-              {formatCurrency(result.totalCostOfOwnership)}
+              {formatCurrency(inputCost)}
             </span>
           </div>
 
