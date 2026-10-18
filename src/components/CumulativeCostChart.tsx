@@ -30,15 +30,24 @@ export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
     const point: Record<string, number | string> = { year: y === 0 ? 'Start' : `Year ${y}` };
     for (const r of results) {
       const upfrontCost = r.purchasePrice + r.stampDuty;
-      if (y === 0) {
-        point[r.carName] = upfrontCost;
-      } else if (showDepreciation) {
-        point[r.carName] = r.yearlyBreakdowns[y - 1].cumulativeTotal + upfrontCost;
+      if (showDepreciation) {
+        // Net economic cost: total paid minus current resale value.
+        // cumulativeTotal already includes running costs + accumulated depreciation
+        // (purchasePrice - vehicleValue), so net cost = stampDuty + cumulativeTotal.
+        // At year 0: no depreciation yet, so net cost = just stampDuty.
+        point[r.carName] = y === 0
+          ? r.stampDuty
+          : r.yearlyBreakdowns[y - 1].cumulativeTotal + r.stampDuty;
       } else {
-        const runningTotal = r.yearlyBreakdowns
-          .slice(0, y)
-          .reduce((sum, yr) => sum + RUNNING_FIELDS.reduce((s, f) => s + yr[f], 0), 0);
-        point[r.carName] = runningTotal + upfrontCost;
+        // Total cash outlay: upfront + running costs (no depreciation).
+        if (y === 0) {
+          point[r.carName] = upfrontCost;
+        } else {
+          const runningTotal = r.yearlyBreakdowns
+            .slice(0, y)
+            .reduce((sum, yr) => sum + RUNNING_FIELDS.reduce((s, f) => s + yr[f], 0), 0);
+          point[r.carName] = runningTotal + upfrontCost;
+        }
       }
     }
     data.push(point);
@@ -46,7 +55,9 @@ export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-gray-700 mb-3">Cumulative Cost Over Time</h3>
+      <h3 className="text-lg font-semibold text-gray-700 mb-3">
+        {showDepreciation ? 'Net Cost Over Time (incl. Depreciation)' : 'Cumulative Cost Over Time'}
+      </h3>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
