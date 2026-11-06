@@ -3,6 +3,12 @@
   "name": "carcompare",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
+  // Explicit so the workers.dev URL stays on now that `routes` is set.
+  "workers_dev": true,
+  "routes": [
+    // Cloudflare creates and manages the DNS record and certificate for this hostname.
+    { "pattern": "carcompare.oscarpurtell.com", "custom_domain": true }
+  ],
   "observability": { "enabled": true },
   "assets": {
     // Built SPA from `vite build`. Unknown paths fall back to index.html.
