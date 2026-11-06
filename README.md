@@ -1,73 +1,45 @@
-# React + TypeScript + Vite
+# Car Cost Compare
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Australian (ACT-focused) car total-cost-of-ownership comparison tool. Compare up to 5 cars across
+fuel, servicing, insurance, CTP, rego, stamp duty, loan interest and depreciation over 1–10 years,
+with an optional AI research step that pre-fills a car from make/model/year.
 
-Currently, two official plugins are available:
+**Stack:** React 19 · TypeScript · Vite 8 · Tailwind CSS 4 · Recharts · Cloudflare Workers (static assets + `/api/research`).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick start
 
-## React Compiler
+1. Install dependencies
+   ```bash
+   npm install
+   ```
+2. Add your AI key for local dev
+   ```bash
+   cp .dev.vars.example .dev.vars   # then set AI_API_KEY
+   ```
+   *Provider and model are set in `wrangler.jsonc` → `vars` (currently Z.ai / `glm-4.7-flash`).*
+3. Run it
+   ```bash
+   npm run dev
+   ```
+   *Runs the Vite app and the Worker together (via `@cloudflare/vite-plugin`), so `/api/research` works locally exactly as in production.*
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Commands
 
-## Expanding the ESLint configuration
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server (app + Worker) |
+| `npm run build` | Type-check (app, worker, tests) and build to `dist/` |
+| `npm test` | Unit tests (Vitest) |
+| `npm run lint` | ESLint |
+| `npm run preview` | Build, then serve the production build locally in workerd |
+| `npm run deploy` | Build and `wrangler deploy` to Cloudflare |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## How the AI research works
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- The browser posts `{ make, model, year, trim?, state }` to `/api/research`.
+- The Worker (`worker/index.ts`) validates input, rate-limits per IP, builds the prompt, calls the provider with the `AI_API_KEY` secret, and returns a sanitised result.
+- The API key never ships to the browser.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Deploying
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+See `docs/HANDOVER.md` for the remaining Cloudflare deployment steps.

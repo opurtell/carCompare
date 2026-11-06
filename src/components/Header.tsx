@@ -1,7 +1,7 @@
 import { useApp } from '../state/AppContext';
 
 export function Header() {
-  const { state, setYears, toggleDepreciation } = useApp();
+  const { state, setYears, toggleDepreciation, resetAll } = useApp();
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
@@ -13,6 +13,9 @@ export function Header() {
       <div className="flex items-center gap-5">
         {/* Depreciation toggle */}
         <button
+          type="button"
+          role="switch"
+          aria-checked={state.showDepreciation}
           onClick={toggleDepreciation}
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
         >
@@ -48,9 +51,8 @@ export function Header() {
 
         <button
           onClick={() => {
-            if (confirm('Reset all cars and settings?')) {
-              localStorage.removeItem('carCompare_v1');
-              window.location.reload();
+            if (confirm('Reset all cars, settings and your saved library?')) {
+              resetAll();
             }
           }}
           className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200

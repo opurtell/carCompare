@@ -1,6 +1,6 @@
 # Car Compare
 
-Australian car cost-of-ownership comparison tool built with React 19, TypeScript, Vite, Tailwind CSS 4, and Recharts.
+Australian car cost-of-ownership comparison tool built with React 19, TypeScript, Vite, Tailwind CSS 4, and Recharts, hosted as a Cloudflare Worker (static assets + `/api/research`).
 
 ## Project Structure
 
@@ -8,7 +8,11 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `src/calculations/costEngine.ts` — all cost/depreciation calculations (`calculateCarResult`)
 - `src/types/car.ts` — core types (`CarConfig`, `YearlyCostBreakdown`, `CarCalculationResult`)
 - `src/data/defaults.ts` — default car config factory (`createDefaultCarConfig`)
-- `src/api/` — external API integrations (`carResearchApi.ts` for AI car research)
+- `src/api/carResearchApi.ts` — browser client for the app's own `/api/research` endpoint
+- `shared/research.ts` — shared by app + Worker: research types, AU states, prompt, input validation, response sanitiser, `safeHttpUrl`
+- `worker/index.ts` — Cloudflare Worker: `/api/research`, `/api/health`; everything else served from static assets
+- `src/calculations/actSpecific.ts` — ACT emissions-based motor vehicle duty (1 Sep 2025 and 1 Feb 2027 tables) and rego
+- `tests/` — Vitest unit tests (`npm test`)
 - `src/utils/` — formatting (`formatCurrency`), color utilities, config merging (`carConfigMerger.ts`)
 - `src/state/` — app state management
 - `src/hooks/` — custom React hooks
@@ -22,35 +26,27 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 ## Commands
 
 - `npm run dev` — start dev server
-- `npm run build` — type-check and build (`tsc -b && vite build`)
+- `npm run build` — type-check (app, worker, tests) and build (`tsc -b && vite build`)
+- `npm test` — Vitest unit tests
 - `npm run lint` — ESLint
-- `npx tsc --noEmit` — type-check only
+- `npm run deploy` — build + `wrangler deploy`
 
 ## Conventions
 
 - Tailwind utility classes for all styling (no CSS modules)
 - `formatCurrency()` for all money display
 - Inline derived calculations in components rather than modifying the cost engine for display concerns
+- Cumulative totals, Key Insights, the table Total and break-even all use `cumulativeCostSeries` / `totalCost` from `costEngine.ts` so they agree with the depreciation toggle
+- Charts key series by `carId`, never `carName` (names can repeat)
+- Never put API keys in `VITE_*` variables — anything `VITE_` is shipped to the browser
 
 ## AI Car Research
 
-**Multi-provider API support**: OpenAI, Anthropic, Z.ai, or custom OpenAI-compatible endpoints
+- Browser → `POST /api/research` → Worker → provider. The key is the Worker secret `AI_API_KEY`.
+- Config: `wrangler.jsonc` `vars` → `AI_PROVIDER` (openai | anthropic | zai | custom), `AI_MODEL`, optional `AI_ENDPOINT` (required for custom).
+- Local dev: secrets in `.dev.vars` (gitignored; see `.dev.vars.example`).
+- Rate limit: `RESEARCH_RATE_LIMITER` binding, 5 requests/min per IP. Cross-origin POSTs are rejected.
+- Model output is untrusted: always go through `sanitizeResearchResult`; render source links only via `safeHttpUrl`.
+- Researched stamp duty is stored with `useCustomStampDuty: true` (it's state-specific).
 
-**Environment variables** (in `.env`):
-```bash
-VITE_AI_PROVIDER=openai|anthropic|zai|custom
-VITE_AI_API_KEY=your_api_key
-VITE_ZAI_MODEL=glm-5  # Optional, default for Z.ai
-VITE_AI_ENDPOINT=https://...  # Optional custom endpoint
-```
-
-**Z.ai API specifics**:
-- Endpoint: `https://api.z.ai/api/paas/v4/chat/completions`
-- Default model: `glm-5` (configurable via `VITE_ZAI_MODEL`)
-- OpenAI-compatible request format with `stream` parameter
-
-**CORS handling**:
-- Vite dev server proxy configured in `vite.config.ts` bypasses CORS in development
-- Production requires server-side proxy (set `VITE_AI_ENDPOINT`)
-
-**Modal flow stages**: `input` → `loading` → `summary` → `expanded`
+**Modal flow stages**: `input` → `loading` (cancellable) → `summary` → `expanded`

@@ -12,46 +12,26 @@ import type { CarCalculationResult } from '../types/car';
 import { getCarColor } from '../utils/colors';
 import { formatCurrency } from '../utils/formatters';
 import { useApp } from '../state/AppContext';
+import { cumulativeCostSeries } from '../calculations/costEngine';
 
 interface CumulativeCostChartProps {
   results: CarCalculationResult[];
 }
 
-const RUNNING_FIELDS = ['fuel', 'servicing', 'insurance', 'ctp', 'registration', 'loanInterest'] as const;
-
 export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
   const { state: { showDepreciation } } = useApp();
   if (results.length < 2) return null;
 
+  // Keyed by carId (not name) so two cars with the same name don't overwrite each other.
+  const series = results.map(r => cumulativeCostSeries(r, showDepreciation));
   const years = results[0].yearlyBreakdowns.length;
-  const data = [];
-
-  for (let y = 0; y <= years; y++) {
+  const data = Array.from({ length: years + 1 }, (_, y) => {
     const point: Record<string, number | string> = { year: y === 0 ? 'Start' : `Year ${y}` };
-    for (const r of results) {
-      const upfrontCost = r.purchasePrice + r.stampDuty;
-      if (showDepreciation) {
-        // Net economic cost: total paid minus current resale value.
-        // cumulativeTotal already includes running costs + accumulated depreciation
-        // (purchasePrice - vehicleValue), so net cost = stampDuty + cumulativeTotal.
-        // At year 0: no depreciation yet, so net cost = just stampDuty.
-        point[r.carName] = y === 0
-          ? r.stampDuty
-          : r.yearlyBreakdowns[y - 1].cumulativeTotal + r.stampDuty;
-      } else {
-        // Total cash outlay: upfront + running costs (no depreciation).
-        if (y === 0) {
-          point[r.carName] = upfrontCost;
-        } else {
-          const runningTotal = r.yearlyBreakdowns
-            .slice(0, y)
-            .reduce((sum, yr) => sum + RUNNING_FIELDS.reduce((s, f) => s + yr[f], 0), 0);
-          point[r.carName] = runningTotal + upfrontCost;
-        }
-      }
-    }
-    data.push(point);
-  }
+    results.forEach((r, i) => {
+      point[r.carId] = series[i][y];
+    });
+    return point;
+  });
 
   return (
     <div>
@@ -75,7 +55,8 @@ export function CumulativeCostChart({ results }: CumulativeCostChartProps) {
             <Line
               key={r.carId}
               type="monotone"
-              dataKey={r.carName}
+              dataKey={r.carId}
+              name={r.carName}
               stroke={getCarColor(i).hex}
               strokeWidth={2}
               dot={{ r: 4 }}

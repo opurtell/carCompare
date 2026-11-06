@@ -1,4 +1,5 @@
 // src/components/LibraryModal.tsx
+import { useEffect } from 'react';
 import { useApp } from '../state/AppContext';
 import { formatCurrency } from '../utils/formatters';
 
@@ -16,18 +17,29 @@ export function LibraryModal({ onClose }: LibraryModalProps) {
 
   const atCap = state.cars.length >= 5;
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="library-title"
         className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-800">Car Library</h2>
+          <h2 id="library-title" className="text-lg font-semibold text-gray-800">Car Library</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"

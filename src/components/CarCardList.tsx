@@ -55,7 +55,7 @@ export function CarCardList() {
 
         {state.cars.length < 5 && (
           <button
-            onClick={() => addCar(createDefaultCarConfig(state.cars.length === 0 ? 'ev' : 'petrol'))}
+            onClick={() => addCar(createDefaultCarConfig(state.cars.length === 0 ? 'ev' : 'petrol', state.cars.map(c => c.name)))}
             className="w-80 shrink-0 rounded-xl border-2 border-dashed border-gray-300
                        flex flex-col items-center justify-center gap-2 text-gray-400
                        hover:border-blue-400 hover:text-blue-500 transition-colors

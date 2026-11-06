@@ -1,6 +1,6 @@
 import type { CarConfig, YearlyCostBreakdown, CarCalculationResult } from '../types/car';
 import { calculateLoanSchedule } from './loanCalculator';
-import { getActRegistration, calculateActStampDuty } from './actSpecific';
+import { getActRegistration, autoStampDutyFor } from './actSpecific';
 
 function calculateFuelCost(car: CarConfig): number {
   const kmHundreds = car.annualKm / 100;
@@ -51,7 +51,7 @@ export function calculateYearlyCosts(
   years: number
 ): YearlyCostBreakdown[] {
   const loanSchedule = car.hasLoan
-    ? calculateLoanSchedule(car.loanAmount, car.interestRate, car.loanTermYears)
+    ? calculateLoanSchedule(car.loanAmount, car.interestRate, Math.round(car.loanTermYears))
     : [];
 
   const fuelCostPerYear = calculateFuelCost(car);
@@ -111,7 +111,7 @@ export function calculateCarResult(
   const yearlyBreakdowns = calculateYearlyCosts(car, years);
   const stampDuty = car.useCustomStampDuty
     ? car.stampDuty
-    : calculateActStampDuty(car.fuelType, car.purchasePrice);
+    : autoStampDutyFor(car);
   const totalRunning = yearlyBreakdowns[yearlyBreakdowns.length - 1]?.cumulativeTotal ?? 0;
   const totalCostOfOwnership = stampDuty + totalRunning;
 
@@ -125,28 +125,53 @@ export function calculateCarResult(
   };
 }
 
+const RUNNING_FIELDS = ['fuel', 'servicing', 'insurance', 'ctp', 'registration', 'loanInterest'] as const;
+
+/**
+ * Cumulative cost at year 0..N, matching what the dashboard displays.
+ * - includeDepreciation: net economic cost = stamp duty + running costs + value lost so far
+ *   (purchase price is recovered as resale value, so only depreciation counts).
+ * - otherwise: cash outlay = purchase price + stamp duty + running costs.
+ */
+export function cumulativeCostSeries(result: CarCalculationResult, includeDepreciation: boolean): number[] {
+  const series: number[] = [];
+  let running = 0;
+  let depreciation = 0;
+  const upfront = includeDepreciation ? result.stampDuty : result.purchasePrice + result.stampDuty;
+  series.push(upfront);
+  for (const yr of result.yearlyBreakdowns) {
+    running += RUNNING_FIELDS.reduce((s, f) => s + yr[f], 0);
+    depreciation += yr.depreciation;
+    series.push(upfront + running + (includeDepreciation ? depreciation : 0));
+  }
+  return series;
+}
+
+/** Total cost over the comparison period, consistent with the depreciation toggle. */
+export function totalCost(result: CarCalculationResult, includeDepreciation: boolean): number {
+  const series = cumulativeCostSeries(result, includeDepreciation);
+  return series[series.length - 1];
+}
+
+/**
+ * First year in which the two cars' cumulative costs cross over (year 1..N).
+ * Returns null if one car is cheaper (or equal) the whole way through.
+ */
 export function findBreakEvenYear(
   resultA: CarCalculationResult,
-  resultB: CarCalculationResult
+  resultB: CarCalculationResult,
+  includeDepreciation = true,
 ): number | null {
-  // Find the year where the cheaper-upfront car becomes cheaper overall
-  const aBreakdowns = resultA.yearlyBreakdowns;
-  const bBreakdowns = resultB.yearlyBreakdowns;
-  const len = Math.min(aBreakdowns.length, bBreakdowns.length);
+  const a = cumulativeCostSeries(resultA, includeDepreciation);
+  const b = cumulativeCostSeries(resultB, includeDepreciation);
+  const len = Math.min(a.length, b.length);
 
   for (let i = 1; i < len; i++) {
-    const prevDiff =
-      (aBreakdowns[i - 1].cumulativeTotal + resultA.stampDuty) -
-      (bBreakdowns[i - 1].cumulativeTotal + resultB.stampDuty);
-    const currDiff =
-      (aBreakdowns[i].cumulativeTotal + resultA.stampDuty) -
-      (bBreakdowns[i].cumulativeTotal + resultB.stampDuty);
-
-    // Sign change = break-even
+    const prevDiff = a[i - 1] - b[i - 1];
+    const currDiff = a[i] - b[i];
     if ((prevDiff > 0 && currDiff <= 0) || (prevDiff < 0 && currDiff >= 0)) {
-      return aBreakdowns[i].year;
+      return i;
     }
   }
-
   return null;
 }

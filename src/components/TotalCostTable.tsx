@@ -2,6 +2,7 @@ import type { CarCalculationResult } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
 import { useApp } from '../state/AppContext';
+import { totalCost } from '../calculations/costEngine';
 
 interface TotalCostTableProps {
   results: CarCalculationResult[];
@@ -28,13 +29,14 @@ export function TotalCostTable({ results }: TotalCostTableProps) {
   const { state: { showDepreciation } } = useApp();
   if (results.length < 2) return null;
 
-  const rows = showDepreciation
-    ? ROWS
-    : ROWS.filter(r => r.label !== 'Depreciation').map(r =>
-        r.label === 'Total'
-          ? { ...r, getValue: (res: CarCalculationResult) => res.totalCostOfOwnership - res.yearlyBreakdowns.reduce((s, y) => s + y.depreciation, 0) }
-          : r,
-      );
+  // With depreciation: net cost of ownership (value lost, not purchase price).
+  // Without: total cash outlay, so the purchase price is shown as its own row.
+  // Either way the Total matches the cumulative chart and Key Insights.
+  const rows: RowDef[] = [
+    ...(showDepreciation ? [] : [{ label: 'Purchase Price', getValue: (r: CarCalculationResult) => r.purchasePrice }]),
+    ...ROWS.filter(r => r.label !== 'Total' && (showDepreciation || r.label !== 'Depreciation')),
+    { label: 'Total', getValue: r => totalCost(r, showDepreciation) },
+  ];
 
   return (
     <div className="overflow-x-auto">

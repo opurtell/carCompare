@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "carcompare",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "assets": {
+    // Built SPA from `vite build`. Unknown paths fall back to index.html.
+    "not_found_handling": "single-page-application",
+    // Only /api/* hits the Worker; everything else is served straight from static assets.
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    // openai | anthropic | zai | custom. The API key is a secret: `npx wrangler secret put AI_API_KEY`.
+    "AI_PROVIDER": "zai",
+    "AI_MODEL": "glm-4.7-flash"
+  },
+  "ratelimits": [
+    {
+      "name": "RESEARCH_RATE_LIMITER",
+      "namespace_id": "1001",
+      // 5 AI research calls per minute per IP — protects the API key from abuse.
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 import type { CarCalculationResult } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
-import { findBreakEvenYear } from '../calculations/costEngine';
+import { findBreakEvenYear, totalCost } from '../calculations/costEngine';
+import { useApp } from '../state/AppContext';
 
 interface KeyInsightsProps {
   results: CarCalculationResult[];
@@ -9,20 +10,23 @@ interface KeyInsightsProps {
 }
 
 export function KeyInsights({ results, years }: KeyInsightsProps) {
+  const { state: { showDepreciation } } = useApp();
   if (results.length < 2) return null;
 
-  // Find cheapest overall
-  const sorted = [...results].sort((a, b) => a.totalCostOfOwnership - b.totalCostOfOwnership);
-  const cheapest = sorted[0];
-  const mostExpensive = sorted[sorted.length - 1];
-  const totalSavings = mostExpensive.totalCostOfOwnership - cheapest.totalCostOfOwnership;
+  // Cheapest overall, using the same basis as the table/chart (net cost vs cash outlay)
+  const withTotals = results.map(r => ({ result: r, total: totalCost(r, showDepreciation) }));
+  const sorted = [...withTotals].sort((a, b) => a.total - b.total);
+  const cheapest = sorted[0].result;
+  const mostExpensive = sorted[sorted.length - 1].result;
+  const cheapestTotal = sorted[0].total;
+  const totalSavings = sorted[sorted.length - 1].total - cheapestTotal;
   const annualSavings = totalSavings / years;
 
   // Find break-even years between all pairs
   const breakEvens: { carA: string; carB: string; year: number }[] = [];
   for (let i = 0; i < results.length; i++) {
     for (let j = i + 1; j < results.length; j++) {
-      const year = findBreakEvenYear(results[i], results[j]);
+      const year = findBreakEvenYear(results[i], results[j], showDepreciation);
       if (year !== null) {
         breakEvens.push({
           carA: results[i].carName,
@@ -47,7 +51,7 @@ export function KeyInsights({ results, years }: KeyInsightsProps) {
             {cheapest.carName}
           </span>
           {' '}is the cheapest option over {years} years at{' '}
-          <span className="font-semibold">{formatCurrency(cheapest.totalCostOfOwnership)}</span>
+          <span className="font-semibold">{formatCurrency(cheapestTotal)}</span>
           , saving{' '}
           <span className="font-semibold text-green-600">{formatCurrency(totalSavings)}</span>
           {' '}vs the most expensive option ({mostExpensive.carName}).

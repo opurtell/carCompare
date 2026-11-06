@@ -1,0 +1,8 @@
+# Local secrets for the Cloudflare Worker (used by `npm run dev`).
+# Copy to .dev.vars — it is gitignored. In production use: npx wrangler secret put AI_API_KEY
+AI_API_KEY=your_api_key_here
+
+# Optional overrides of the [vars] in wrangler.jsonc:
+# AI_PROVIDER=zai            # openai | anthropic | zai | custom
+# AI_MODEL=glm-4.7-flash
+# AI_ENDPOINT=https://...    # required for custom (OpenAI-compatible)

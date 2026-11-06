@@ -3,7 +3,8 @@ import type { CarConfig, FuelType, GlobalDefaults } from '../types/car';
 export const ACT_DEFAULTS = {
   regoPerYear: 360,
   ctpPerYear: 600,
-  evFreeRegoYears: 2,
+  // ACT's 2-year free rego for new ZEVs closed 30 June 2024.
+  evFreeRegoYears: 0,
   petrolPrice: 2.0,
   electricityPrice: 0.30,
   solarRate: 0.06,
@@ -17,7 +18,7 @@ const FUEL_TYPE_DEFAULTS: Record<FuelType, Partial<CarConfig>> = {
     phevElectricPercent: 100,
     servicingCostPerYear: 400,
     stampDuty: 0,
-    evFreeRegoYears: 2,
+    evFreeRegoYears: ACT_DEFAULTS.evFreeRegoYears,
   },
   phev: {
     petrolConsumption: 5,
@@ -51,14 +52,19 @@ export const DEFAULT_GLOBAL_DEFAULTS: GlobalDefaults = {
   annualKm: ACT_DEFAULTS.annualKm,
 };
 
-let counter = 0;
+/** Picks "Car N" with the lowest N not already used, so names stay unique across reloads. */
+export function nextCarName(existingNames: string[] = []): string {
+  const taken = new Set(existingNames);
+  let n = 1;
+  while (taken.has(`Car ${n}`)) n++;
+  return `Car ${n}`;
+}
 
-export function createDefaultCarConfig(fuelType: FuelType = 'ev'): CarConfig {
+export function createDefaultCarConfig(fuelType: FuelType = 'ev', existingNames: string[] = []): CarConfig {
   const fuelDefaults = FUEL_TYPE_DEFAULTS[fuelType];
-  counter++;
   return {
     id: crypto.randomUUID(),
-    name: `Car ${counter}`,
+    name: nextCarName(existingNames),
     fuelType,
     purchasePrice: fuelType === 'ev' ? 50000 : 35000,
     petrolPrice: ACT_DEFAULTS.petrolPrice,

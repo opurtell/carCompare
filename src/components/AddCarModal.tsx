@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../state/AppContext';
-import { researchVehicle, type ResearchResult } from '../api/carResearchApi';
+import { researchVehicle, ResearchApiError, type ResearchResult } from '../api/carResearchApi';
+import { AU_STATES, safeHttpUrl, type AUStateCode } from '../../shared/research';
 import { mergeResearchResultToConfig } from '../utils/carConfigMerger';
 import type { CarConfig, FuelType } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
@@ -16,30 +17,39 @@ interface AddCarModalProps {
 
 type ModalStage = 'input' | 'loading' | 'summary' | 'expanded';
 
-const AU_STATES = [
-  { code: 'NSW', name: 'New South Wales' },
-  { code: 'VIC', name: 'Victoria' },
-  { code: 'QLD', name: 'Queensland' },
-  { code: 'WA', name: 'Western Australia' },
-  { code: 'SA', name: 'South Australia' },
-  { code: 'TAS', name: 'Tasmania' },
-  { code: 'ACT', name: 'Australian Capital Territory' },
-  { code: 'NT', name: 'Northern Territory' },
-];
-
 export function AddCarModal({ onClose }: AddCarModalProps) {
   const { state, addCar } = useApp();
   const [stage, setStage] = useState<ModalStage>('input');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    make: string;
+    model: string;
+    year: number;
+    trim: string;
+    state: AUStateCode;
+  }>({
     make: '',
     model: '',
     year: new Date().getFullYear(),
     trim: '',
     state: 'ACT',
   });
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Close on Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Cancel any in-flight research only when the modal unmounts.
+  useEffect(() => () => abortRef.current?.abort(), []);
   const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
   const [carConfig, setCarConfig] = useState<CarConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
   const atCap = state.cars.length >= 5;
@@ -51,34 +61,43 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
     }
 
     setError(null);
+    setErrorCode(null);
     setStage('loading');
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      const result = await researchVehicle({
-        make: formData.make.trim(),
-        model: formData.model.trim(),
-        year: formData.year,
-        trim: formData.trim.trim() || undefined,
-        state: formData.state,
-      });
-
-      const config = mergeResearchResultToConfig(
-        result,
-        state.globalDefaults,
-        formData.state
+      const result = await researchVehicle(
+        {
+          make: formData.make.trim(),
+          model: formData.model.trim(),
+          year: formData.year,
+          trim: formData.trim.trim() || undefined,
+          state: formData.state,
+        },
+        controller.signal,
       );
+
+      const config = mergeResearchResultToConfig(result, state.globalDefaults);
 
       setResearchResult(result);
       setCarConfig(config);
       setStage('summary');
     } catch (e) {
-      if (e instanceof Error) {
-        setError(e.message);
-      } else {
-        setError('An unexpected error occurred.');
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setStage('input');
+        return;
       }
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.');
+      setErrorCode(e instanceof ResearchApiError ? e.code : null);
       setStage('input');
     }
+  }
+
+  function handleCancelResearch() {
+    abortRef.current?.abort();
+    setStage('input');
   }
 
   function handleAddToComparison() {
@@ -146,8 +165,11 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
             <input
               type="number"
               value={formData.year}
-              onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) || 2024 })}
-              min={2010}
+              onChange={e => {
+                const year = parseInt(e.target.value, 10);
+                if (Number.isFinite(year)) setFormData({ ...formData, year });
+              }}
+              min={1990}
               max={new Date().getFullYear() + 1}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
@@ -170,7 +192,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
             </label>
             <select
               value={formData.state}
-              onChange={e => setFormData({ ...formData, state: e.target.value })}
+              onChange={e => setFormData({ ...formData, state: e.target.value as AUStateCode })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {AU_STATES.map(s => (
@@ -184,25 +206,11 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             <p>{error}</p>
-            {(error.includes('API key') || error.includes('CORS')) && (
-              <div className="mt-2">
-                <a
-                  href=".env.example"
-                  className="text-blue-600 hover:underline"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.open('.env.example', '_blank');
-                  }}
-                >
-                  View .env.example for setup instructions
-                </a>
-                {error.includes('CORS') && (
-                  <p className="mt-2 text-xs text-red-600">
-                    A Vite proxy is configured for development. If you're still seeing this error,
-                    restart the dev server with `npm run dev`.
-                  </p>
-                )}
-              </div>
+            {errorCode === 'not_configured' && (
+              <p className="mt-2 text-xs text-red-600">
+                The server has no AI key yet. Locally, add <code>AI_API_KEY</code> to <code>.dev.vars</code>;
+                in production run <code>npx wrangler secret put AI_API_KEY</code>. See the README.
+              </p>
             )}
           </div>
         )}
@@ -235,6 +243,13 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         <p className="text-sm text-gray-500 mt-1">
           Gathering Australian-specific pricing and costs for {formData.state}...
         </p>
+        <button
+          type="button"
+          onClick={handleCancelResearch}
+          className="mt-6 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     );
   }
@@ -325,19 +340,29 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
             </button>
             {sourcesOpen && (
               <div className="mt-2 space-y-1 text-xs">
-                {Object.entries(researchResult.sources).map(([key, url]) => (
-                  <div key={key} className="flex items-start gap-2">
-                    <span className="text-gray-400 capitalize">{key}:</span>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline break-all"
-                    >
-                      {url}
-                    </a>
-                  </div>
-                ))}
+                {Object.entries(researchResult.sources)
+                  .filter(([, value]) => value)
+                  .map(([key, value]) => {
+                    // Model output is untrusted: only http(s) URLs become links.
+                    const href = safeHttpUrl(value);
+                    return (
+                      <div key={key} className="flex items-start gap-2">
+                        <span className="text-gray-400 capitalize shrink-0">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                        {href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline break-all"
+                          >
+                            {value}
+                          </a>
+                        ) : (
+                          <span className="text-gray-600 break-words">{value}</span>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -394,13 +419,18 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
           <NumberInput
             label="Stamp Duty"
             value={carConfig.stampDuty}
-            onChange={v => handleUpdateConfig({ stampDuty: v })}
+            onChange={v => handleUpdateConfig({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
           />
           <ToggleSwitch
             label="Car Loan"
             checked={carConfig.hasLoan}
-            onChange={v => handleUpdateConfig({ hasLoan: v })}
+            onChange={v =>
+              handleUpdateConfig({
+                hasLoan: v,
+                ...(v && carConfig.loanAmount <= 0 ? { loanAmount: carConfig.purchasePrice } : {}),
+              })
+            }
           />
           {carConfig.hasLoan && (
             <>
@@ -426,6 +456,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
                 suffix="yrs"
                 min={1}
                 max={10}
+                integer
               />
             </>
           )}
@@ -555,6 +586,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
               suffix="yrs"
               min={0}
               max={5}
+              integer
             />
           )}
         </Section>
@@ -602,12 +634,15 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-car-title"
         className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h2 id="add-car-title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <span className="text-purple-500">✨</span>
             <span>AI-Powered Car Research</span>
           </h2>
