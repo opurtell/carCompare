@@ -38,19 +38,17 @@ export function CarCardList() {
       <div className="flex items-center justify-between gap-2 px-4 md:pl-6 pt-3 md:pt-0 pb-2">
         <h2 className="text-lg font-semibold text-gray-700">Configure Cars</h2>
         <div className="flex gap-2">
-        {aiAvailable && (
-          <button
-            onClick={() => setAddCarModalOpen(true)}
-            disabled={state.cars.length >= 5}
-            className="text-xs px-3 py-1.5 min-h-10 md:min-h-0 whitespace-nowrap rounded-md bg-purple-50 text-purple-700
-                       hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-            title={state.cars.length >= 5 ? 'Comparison is full (5 cars max)' : 'AI-powered car research'}
-          >
-            <span>✨</span>
-            <span>AI Add</span>
-          </button>
-        )}
+        <button
+          onClick={() => setAddCarModalOpen(true)}
+          disabled={state.cars.length >= 5}
+          className="text-xs px-3 py-1.5 min-h-10 md:min-h-0 whitespace-nowrap rounded-md bg-purple-50 text-purple-700
+                     hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
+                     disabled:opacity-40 disabled:cursor-not-allowed"
+          title={state.cars.length >= 5 ? 'Comparison is full (5 cars max)' : 'Pick a popular car, or look one up'}
+        >
+          <span>🔎</span>
+          <span>Pick a car</span>
+        </button>
         <button
           onClick={() => setLibraryOpen(true)}
           className="text-xs px-3 py-1.5 min-h-10 md:min-h-0 whitespace-nowrap rounded-md bg-gray-100 text-gray-600
@@ -135,7 +133,7 @@ export function CarCardList() {
       </div>
 
       {libraryOpen && <LibraryModal onClose={() => setLibraryOpen(false)} />}
-      {addCarModalOpen && <AddCarModal onClose={() => setAddCarModalOpen(false)} />}
+      {addCarModalOpen && <AddCarModal aiAvailable={aiAvailable} onClose={() => setAddCarModalOpen(false)} />}
     </>
   );
 }

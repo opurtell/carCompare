@@ -4,6 +4,9 @@ import { DEFAULT_GLOBAL_DEFAULTS, createDefaultCarConfig } from '../data/default
 
 export const STORAGE_KEY = 'carCompare_v1';
 const DEBOUNCE_MS = 500;
+/** Flat defaults used before rego and CTP were calculated (Nov 2026). */
+const LEGACY_DEFAULT_REGO = 360;
+const LEGACY_DEFAULT_CTP = 600;
 
 /** Fills in fields added since the config was saved, so old saves keep working. */
 function migrateCar(raw: unknown): CarConfig | null {
@@ -11,7 +14,17 @@ function migrateCar(raw: unknown): CarConfig | null {
   const car = raw as Partial<CarConfig>;
   if (typeof car.id !== 'string') return null;
   const base = createDefaultCarConfig(car.fuelType ?? 'petrol');
-  return { ...base, ...car } as CarConfig;
+  return {
+    ...base,
+    ...car,
+    // Saves from before these fields existed: a rego/CTP that isn't the old flat default was typed
+    // by the user, so keep it; otherwise switch to the calculated ACT figure.
+    useCustomRego: car.useCustomRego ?? (typeof car.regoPerYear === 'number' && car.regoPerYear !== LEGACY_DEFAULT_REGO),
+    useCustomCtp: car.useCustomCtp ?? (typeof car.ctpPerYear === 'number' && car.ctpPerYear !== LEGACY_DEFAULT_CTP),
+    // Older saves used one flat rate for every year; keep their numbers unchanged.
+    firstYearDepreciationPercent:
+      car.firstYearDepreciationPercent ?? car.annualDepreciationPercent ?? base.firstYearDepreciationPercent,
+  } as CarConfig;
 }
 
 function migrateLibraryEntry(raw: unknown): LibraryCar | null {

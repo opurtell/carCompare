@@ -1,42 +1,37 @@
 import type { CarConfig, GlobalDefaults } from '../types/car';
 import type { ResearchResult } from '../api/carResearchApi';
-import { ACT_DEFAULTS } from '../data/defaults';
+import { createDefaultCarConfig } from '../data/defaults';
+import { autoRegoFor } from '../calculations/actSpecific';
 
+/**
+ * Car facts from research (AI lookup or the built-in catalogue) on top of the fuel-type defaults.
+ * Stamp duty, rego and CTP stay on auto: the app calculates them from the ACT rules using the
+ * car's CO2 and tare. A missing (0) servicing or insurance figure keeps the default.
+ */
 export function mergeResearchResultToConfig(
-  research: ResearchResult,
+  research: Pick<ResearchResult,
+    'name' | 'fuelType' | 'purchasePrice' | 'petrolConsumption' | 'electricConsumption' |
+    'co2GPerKm' | 'tareKg' | 'servicingCostPerYear' | 'insurancePerYear'>,
   globalDefaults: GlobalDefaults,
 ): CarConfig {
-  return {
-    id: crypto.randomUUID(),
+  const base = createDefaultCarConfig(research.fuelType);
+  const car: CarConfig = {
+    ...base,
     name: research.name || 'New Car',
-    fuelType: research.fuelType,
     purchasePrice: research.purchasePrice,
-    // The researched duty is state-specific, so keep it as an explicit override rather than
-    // silently replacing it with the ACT auto-calculation.
-    stampDuty: research.stampDuty,
-    useCustomStampDuty: true,
-    regoPerYear: research.regoPerYear,
-    ctpPerYear: research.ctpPerYear,
-    petrolConsumption: research.petrolConsumption,
-    electricConsumption: research.electricConsumption,
-    phevElectricPercent: research.phevElectricPercent,
-    servicingCostPerYear: research.servicingCostPerYear,
-    insurancePerYear: research.insurancePerYear,
-    evFreeRegoYears: research.evFreeRegoYears,
-    annualDepreciationPercent: research.annualDepreciationPercent,
-    depreciationModel: 'percentage',
-    hasLoan: research.hasLoan,
-    loanAmount: research.loanAmount,
-    interestRate: research.interestRate,
-    loanTermYears: research.loanTermYears,
-    useSolarCharging: false,
-    solarRate: ACT_DEFAULTS.solarRate,
-    solarChargingPercent: 50,
+    petrolConsumption: research.fuelType === 'ev' ? 0 : research.petrolConsumption || base.petrolConsumption,
+    electricConsumption:
+      research.fuelType === 'ev' || research.fuelType === 'phev'
+        ? research.electricConsumption || base.electricConsumption
+        : 0,
+    co2GPerKm: research.co2GPerKm > 0 ? research.co2GPerKm : undefined,
+    tareKg: research.tareKg > 0 ? research.tareKg : undefined,
+    servicingCostPerYear: research.servicingCostPerYear > 0 ? research.servicingCostPerYear : base.servicingCostPerYear,
+    insurancePerYear: research.insurancePerYear > 0 ? research.insurancePerYear : base.insurancePerYear,
     petrolPrice: globalDefaults.petrolPrice,
     electricityPrice: globalDefaults.electricityPrice,
     annualKm: globalDefaults.annualKm,
-    useCustomPetrolPrice: false,
-    useCustomElectricityPrice: false,
-    useCustomAnnualKm: false,
   };
+  car.regoPerYear = autoRegoFor(car);
+  return car;
 }

@@ -1,16 +1,20 @@
 import {
   buildResearchPrompt,
+  buildGeminiRequest,
   extractJsonObject,
+  parseGeminiResponse,
+  researchCacheKey,
   sanitizeResearchResult,
   validateResearchParams,
   type AIProvider,
+  type ResearchCitation,
   type ResearchErrorBody,
   type ResearchErrorCode,
 } from '../shared/research';
 
 export interface Env {
   ASSETS: Fetcher;
-  /** openai | anthropic | zai | custom (OpenAI-compatible). */
+  /** gemini | openai | anthropic | zai | custom (OpenAI-compatible). */
   AI_PROVIDER?: string;
   /** Secret — set with `wrangler secret put AI_API_KEY` (or .dev.vars locally). */
   AI_API_KEY?: string;
@@ -26,7 +30,12 @@ const PROVIDERS: Record<Exclude<AIProvider, 'custom'>, { url: string; model: str
   openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' },
   anthropic: { url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-5-5' },
   zai: { url: 'https://api.z.ai/api/paas/v4/chat/completions', model: 'glm-5' },
+  // `{model}` is filled in per request. Grounded with Google Search, so it reads real pages.
+  gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent', model: 'gemini-2.5-flash' },
 };
+
+/** Lookups are cached per car so repeat lookups are free and fast (Cache API, per data centre). */
+const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const UPSTREAM_TIMEOUT_MS = 120_000;
 const SYSTEM_PROMPT = 'You are a helpful research assistant that returns only valid JSON.';
@@ -54,25 +63,37 @@ function errorResponse(err: ResearchError): Response {
 }
 
 function resolveProvider(env: Env): { provider: AIProvider; url: string; model: string } {
-  const provider = (env.AI_PROVIDER || 'openai').toLowerCase() as AIProvider;
+  const provider = (env.AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
   if (provider === 'custom') {
     if (!env.AI_ENDPOINT) throw new ResearchError(503, 'not_configured', 'AI_ENDPOINT is required for the custom provider.');
     return { provider, url: env.AI_ENDPOINT, model: env.AI_MODEL || 'gpt-4o' };
   }
   const preset = PROVIDERS[provider];
   if (!preset) throw new ResearchError(503, 'not_configured', `Unsupported AI_PROVIDER "${provider}".`);
-  return { provider, url: env.AI_ENDPOINT || preset.url, model: env.AI_MODEL || preset.model };
+  const model = env.AI_MODEL || preset.model;
+  const url = (env.AI_ENDPOINT || preset.url).replace('{model}', encodeURIComponent(model));
+  return { provider, url, model };
 }
 
-async function callProvider(env: Env, prompt: string): Promise<string> {
+interface ProviderReply {
+  content: string;
+  /** Pages the provider's own search grounding used (Gemini only). Untrusted until sanitised. */
+  citations: ResearchCitation[];
+}
+
+async function callProvider(env: Env, prompt: string): Promise<ProviderReply> {
   const apiKey = env.AI_API_KEY;
   if (!apiKey) throw new ResearchError(503, 'not_configured', 'AI research is not configured on the server (AI_API_KEY missing).');
   const { provider, url, model } = resolveProvider(env);
 
   const isAnthropic = provider === 'anthropic';
+  const isGemini = provider === 'gemini';
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   let body: unknown;
-  if (isAnthropic) {
+  if (isGemini) {
+    headers['x-goog-api-key'] = apiKey;
+    body = buildGeminiRequest(SYSTEM_PROMPT, prompt);
+  } else if (isAnthropic) {
     headers['x-api-key'] = apiKey;
     headers['anthropic-version'] = '2023-06-01';
     body = {
@@ -125,11 +146,26 @@ async function callProvider(env: Env, prompt: string): Promise<string> {
     choices?: { message?: { content?: string } }[];
     content?: { type?: string; text?: string }[];
   };
-  const content = isAnthropic
-    ? data.content?.filter(c => c.type === 'text').map(c => c.text ?? '').join('')
-    : data.choices?.[0]?.message?.content;
+  let content: string | undefined;
+  let citations: ResearchCitation[] = [];
+  if (isGemini) {
+    ({ content, citations } = parseGeminiResponse(data));
+  } else if (isAnthropic) {
+    content = data.content?.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
+  } else {
+    content = data.choices?.[0]?.message?.content;
+  }
   if (!content) throw new ResearchError(502, 'parse_error', 'The AI service returned an empty response.');
-  return content;
+  return { content, citations };
+}
+
+/** The Cache API is unavailable in some local setups; treat that as a miss. */
+function researchCache(): Cache | null {
+  try {
+    return typeof caches !== 'undefined' ? caches.default : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Blocks cross-site use of the endpoint from other origins' browsers. */
@@ -139,7 +175,7 @@ function isSameOrigin(request: Request): boolean {
   return origin === new URL(request.url).origin;
 }
 
-async function handleResearch(request: Request, env: Env): Promise<Response> {
+async function handleResearch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Method not allowed', code: 'bad_request' }, 405);
   if (!isSameOrigin(request)) return json({ error: 'Cross-origin requests are not allowed.', code: 'bad_request' }, 403);
 
@@ -163,15 +199,36 @@ async function handleResearch(request: Request, env: Env): Promise<Response> {
   const validated = validateResearchParams(payload);
   if (!validated.ok) return errorResponse(new ResearchError(400, 'bad_request', validated.error));
 
+  const cache = researchCache();
+  const cacheKey = new Request(researchCacheKey(validated.params));
+  const cached = await cache?.match(cacheKey).catch(() => undefined);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-research-cache': 'hit' },
+    });
+  }
+
   try {
-    const content = await callProvider(env, buildResearchPrompt(validated.params));
-    let parsed: unknown;
+    const { content, citations } = await callProvider(env, buildResearchPrompt(validated.params));
+    let result;
     try {
-      parsed = extractJsonObject(content);
-      return json(sanitizeResearchResult(parsed, validated.params));
+      result = sanitizeResearchResult(extractJsonObject(content), validated.params, citations);
     } catch {
       throw new ResearchError(502, 'parse_error', 'Unable to parse the AI response. Please try again.');
     }
+    const body = JSON.stringify(result);
+    if (cache) {
+      ctx.waitUntil(
+        cache
+          .put(cacheKey, new Response(body, {
+            headers: { 'content-type': 'application/json', 'cache-control': `public, max-age=${CACHE_TTL_SECONDS}` },
+          }))
+          .catch(() => undefined),
+      );
+    }
+    return new Response(body, {
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-research-cache': 'miss' },
+    });
   } catch (e) {
     if (e instanceof ResearchError) return errorResponse(e);
     console.error('[research] unexpected error', e);
@@ -180,10 +237,10 @@ async function handleResearch(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/api/research') return handleResearch(request, env);
+    if (url.pathname === '/api/research') return handleResearch(request, env, ctx);
     if (url.pathname === '/api/health') {
       let provider: string | null = null;
       try {

@@ -2,7 +2,7 @@
 // Pure TypeScript only — no DOM or Workers APIs.
 
 export type FuelType = 'ev' | 'phev' | 'hybrid' | 'petrol';
-export type AIProvider = 'openai' | 'anthropic' | 'zai' | 'custom';
+export type AIProvider = 'openai' | 'anthropic' | 'zai' | 'gemini' | 'custom';
 
 export const AU_STATES = [
   { code: 'NSW', name: 'New South Wales' },
@@ -28,32 +28,36 @@ export interface ResearchParams {
 export interface ResearchSources {
   purchasePrice: string;
   consumption: string;
+  emissions: string;
   servicing: string;
   insurance: string;
-  registration: string;
-  stampDuty: string;
 }
 
+/** A page the search-grounded model actually used (from the provider's grounding metadata). */
+export interface ResearchCitation {
+  title: string;
+  url: string;
+}
+
+/**
+ * Facts about the car only. Stamp duty, rego and CTP are set by ACT law, so the app calculates
+ * them itself rather than trusting a model; depreciation and loans are user settings.
+ */
 export interface ResearchResult {
   name: string;
   fuelType: FuelType;
+  /** List price incl. GST, before on-road costs (duty, rego, CTP are added by the app). */
   purchasePrice: number;
-  stampDuty: number;
-  regoPerYear: number;
   petrolConsumption: number;
   electricConsumption: number;
-  phevElectricPercent: number;
+  /** 0 = unknown (EVs are always 0). */
+  co2GPerKm: number;
+  /** 0 = unknown. */
+  tareKg: number;
   servicingCostPerYear: number;
   insurancePerYear: number;
-  ctpPerYear: number;
-  annualDepreciationPercent: number;
-  evFreeRegoYears: number;
-  depreciationModel: 'percentage';
-  hasLoan: boolean;
-  loanAmount: number;
-  interestRate: number;
-  loanTermYears: number;
   sources: ResearchSources;
+  citations: ResearchCitation[];
 }
 
 /** Error codes returned by /api/research so the UI can show a helpful message. */
@@ -108,113 +112,95 @@ export function validateResearchParams(
   };
 }
 
-const PROMPT_TEMPLATE = `You are a research agent for an Australian car cost-of-ownership comparison tool. Your task is to research a specific vehicle and gather ALL the following data required to configure it in the comparison app.
+const PROMPT_TEMPLATE = `Search the web and find facts about this new car as sold in Australia, for a cost-of-ownership calculator.
 
-## Target Vehicle
+Car: {{year}} {{make}} {{model}}{{trim}}
+Buyer's state: {{state}}
 
-Make: {{make}}
-Model: {{model}}
-Year/Variant: {{year}}{{trim}}
-State: {{state}}
+Return these facts. Use the official Australian figures where they exist (manufacturer AU site, Green Vehicle Guide, CarExpert, Drive, CarsGuide):
 
-## Required Data Points
+- name: full name, e.g. "Toyota RAV4 GXL Hybrid"
+- fuelType: one of "ev", "phev", "hybrid", "petrol"
+- purchasePrice: AUD list price including GST but BEFORE on-road costs (no stamp duty, registration or CTP). If you only find a drive-away price, use it and say so in sources.purchasePrice.
+- petrolConsumption: official combined L/100km (0 for an EV)
+- electricConsumption: kWh/100km (0 unless EV or PHEV)
+- co2GPerKm: official combined CO2 g/km (0 for an EV; 0 if not found)
+- tareKg: tare mass in kg (kerb mass if tare isn't published; 0 if not found)
+- servicingCostPerYear: average yearly cost of the brand's capped-price servicing over the first 5 years
+- insurancePerYear: typical comprehensive insurance for a private owner in {{state}} (an estimate)
+- sources: for each group, the URL of the page the figure came from, or "estimate"
 
-### 1. Basic Information
-
-- **Name**: Full vehicle name (e.g., "Toyota RAV4 Hybrid GXL")
-- **Fuel Type**: One of: \`ev\`, \`phev\`, \`hybrid\`, \`petrol\`
-
-### 2. Purchase & Registration (AUSTRALIA SPECIFIC)
-
-- **Purchase Price (AUD)**: On-road price including GST and dealer delivery
-- **Stamp Duty (AUD)**: Vehicle stamp duty / motor vehicle duty for {{state}} (calculate from purchase price and current state rates; note the ACT uses CO2-emissions-based categories)
-- **Registration Cost (AUD/year)**: Annual vehicle registration fee for {{state}}
-
-### 3. Consumption
-
-- **Petrol Consumption (L/100km)**: Combined cycle ADR rating (set to 0 if EV)
-- **Electric Consumption (kWh/100km)**: Energy consumption for EV/PHEV mode (set to 0 if petrol-only)
-- **PHEV Electric Percent (%)**: Percentage of driving in EV mode for PHEVs (set to 0 if not PHEV)
-
-### 4. Running Costs (AVERAGES, AUSTRALIA)
-
-- **Servicing Cost (AUD/year)**: Average annual servicing cost from manufacturer schedule
-- **Insurance (AUD/year)**: Typical comprehensive insurance cost (provide a reasonable estimate with source)
-- **CTP/Greenslip (AUD/year)**: Compulsory third party insurance cost for {{state}}
-
-### 5. Depreciation
-
-- **Depreciation Model**: Use \`percentage\`
-- **Annual Depreciation (%)**: Typical annual depreciation rate for this vehicle class/type (e.g., 15-20% for new cars, provide source if available)
-
-### 6. Loan
-
-- Set \`hasLoan\` to false and loan fields to 0 unless financing was specified.
-
-### 7. EV-Specific (Only for EVs/PHEVs)
-
-- **Free Registration Years**: How many years of free registration a vehicle bought now is eligible for in {{state}} (0 if no current scheme)
-
-## Output Format
-
-Provide ONLY a JSON response in this exact structure (no markdown code blocks, no additional text):
-
+Reply with ONLY this JSON object, no markdown fences or other text:
 {
   "name": "string",
   "fuelType": "ev" | "phev" | "hybrid" | "petrol",
   "purchasePrice": number,
-  "stampDuty": number,
-  "regoPerYear": number,
   "petrolConsumption": number,
   "electricConsumption": number,
-  "phevElectricPercent": number,
+  "co2GPerKm": number,
+  "tareKg": number,
   "servicingCostPerYear": number,
   "insurancePerYear": number,
-  "ctpPerYear": number,
-  "annualDepreciationPercent": number,
-  "evFreeRegoYears": number,
-  "depreciationModel": "percentage",
-  "hasLoan": boolean,
-  "loanAmount": number,
-  "interestRate": number,
-  "loanTermYears": number,
   "sources": {
-    "purchasePrice": "URL/source",
-    "consumption": "URL/source",
-    "servicing": "URL/source",
-    "insurance": "URL/source",
-    "registration": "URL/source",
-    "stampDuty": "URL/source"
+    "purchasePrice": "URL or estimate",
+    "consumption": "URL or estimate",
+    "emissions": "URL or estimate",
+    "servicing": "URL or estimate",
+    "insurance": "URL or estimate"
   }
 }
 
-## Research Guidelines
+Never invent a URL. If you can't find a figure, give your best estimate and write "estimate" as its source.`;
 
-1. **Prioritise official sources**: Manufacturer websites, Australian government vehicle databases, reputable automotive sites
-2. **Use current Australian data**: {{currentYear}} figures where available
-3. **State-specific registration/CTP**: Use {{state}} for accurate registration and CTP costs
-4. **Provide sources**: Include URLs or references for each data point
-5. **Be transparent about estimates**: Clearly label any values that are estimates rather than official figures
-6. **On-road prices**: Always include on-road pricing, not list price
-
-## Example Research Sources to Check
-
-- Manufacturer official AU website
-- CarsGuide, Drive, CarExpert Australian reviews
-- {{state}} revenue office (stamp duty calculators)
-- {{state}} transport department (registration fees)
-- NRMA/RACV insurance estimators
-`;
-
-export function buildResearchPrompt(params: ResearchParams, now: Date = new Date()): string {
+export function buildResearchPrompt(params: ResearchParams): string {
   const trim = params.trim ? `, ${params.trim}` : '';
   return PROMPT_TEMPLATE
     .replace(/\{\{make\}\}/g, params.make)
     .replace(/\{\{model\}\}/g, params.model)
     .replace(/\{\{year\}\}/g, String(params.year))
     .replace(/\{\{trim\}\}/g, trim)
-    .replace(/\{\{state\}\}/g, params.state)
-    .replace(/\{\{currentYear\}\}/g, String(now.getFullYear()));
+    .replace(/\{\{state\}\}/g, params.state);
+}
+
+/** Same car, same answer: normalised so "toyota rav4" and "Toyota RAV4 " share an entry. */
+/** Bump when the result shape or prompt changes, so old cached answers are ignored. */
+const CACHE_VERSION = 'v2';
+
+export function researchCacheKey(params: ResearchParams): string {
+  const norm = (v: string | undefined) => (v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const parts = [params.state, params.year, norm(params.make), norm(params.model), norm(params.trim)];
+  return `https://research-cache.internal/${CACHE_VERSION}/${parts.map(p => encodeURIComponent(String(p))).join('/')}`;
+}
+
+/**
+ * Gemini generateContent body with Google Search grounding, so the model reads real pages
+ * instead of guessing. JSON mode can't be combined with search tools, so the reply is plain
+ * text and the JSON is pulled out with extractJsonObject.
+ */
+export function buildGeminiRequest(systemPrompt: string, prompt: string) {
+  return {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    tools: [{ google_search: {} }],
+    // Room for thinking tokens on models that think by default.
+    generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+  };
+}
+
+interface GeminiResponse {
+  candidates?: {
+    content?: { parts?: { text?: string; thought?: boolean }[] };
+    groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] };
+  }[];
+}
+
+/** Answer text (thought parts dropped) plus the pages the search grounding used. Untrusted. */
+export function parseGeminiResponse(data: unknown): { content: string; citations: ResearchCitation[] } {
+  const candidate = (data as GeminiResponse | null)?.candidates?.[0];
+  const content = (candidate?.content?.parts ?? []).filter(p => !p.thought).map(p => p.text ?? '').join('');
+  const citations = (candidate?.groundingMetadata?.groundingChunks ?? [])
+    .map(c => ({ url: c.web?.uri ?? '', title: c.web?.title ?? '' }));
+  return { content, citations };
 }
 
 /** Pull the first {...} block out of a model response (handles ```json fences and preamble). */
@@ -235,17 +221,35 @@ function str(v: unknown, maxLen: number): string {
   return typeof v === 'string' ? v.trim().slice(0, maxLen) : '';
 }
 
+const MAX_CITATIONS = 8;
+
+/** Keeps only well-formed http(s) citations, deduplicated and capped. */
+export function sanitizeCitations(raw: unknown): ResearchCitation[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: ResearchCitation[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const c = item as Record<string, unknown>;
+    const url = safeHttpUrl(str(c.url, 2000));
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push({ url, title: str(c.title, 120) || new URL(url).hostname });
+    if (out.length >= MAX_CITATIONS) break;
+  }
+  return out;
+}
+
 /**
  * Coerces an untrusted model response into a safe ResearchResult.
  * Numbers are clamped to sane ranges so a hallucinated value can't produce NaN or absurd totals.
  */
-export function sanitizeResearchResult(raw: unknown, params: ResearchParams): ResearchResult {
+export function sanitizeResearchResult(raw: unknown, params: ResearchParams, citations: unknown = []): ResearchResult {
   if (!raw || typeof raw !== 'object') throw new Error('Response is not an object');
   const r = raw as Record<string, unknown>;
   const rawFuel = str(r.fuelType, 10).toLowerCase();
   const fuelType: FuelType = (FUEL_TYPES as string[]).includes(rawFuel) ? (rawFuel as FuelType) : 'petrol';
   const s = (r.sources && typeof r.sources === 'object' ? r.sources : {}) as Record<string, unknown>;
-  const hasLoan = r.hasLoan === true;
 
   const purchasePrice = num(r.purchasePrice, 0, 1_000_000);
   if (purchasePrice <= 0) throw new Error('Missing purchase price');
@@ -254,29 +258,20 @@ export function sanitizeResearchResult(raw: unknown, params: ResearchParams): Re
     name: str(r.name, 80) || `${params.make} ${params.model}`,
     fuelType,
     purchasePrice,
-    stampDuty: num(r.stampDuty, 0, 200_000),
-    regoPerYear: num(r.regoPerYear, 0, 10_000),
     petrolConsumption: fuelType === 'ev' ? 0 : num(r.petrolConsumption, 0, 40),
     electricConsumption: fuelType === 'ev' || fuelType === 'phev' ? num(r.electricConsumption, 0, 60) : 0,
-    phevElectricPercent: fuelType === 'phev' ? num(r.phevElectricPercent, 0, 100, 60) : 0,
+    co2GPerKm: fuelType === 'ev' ? 0 : Math.round(num(r.co2GPerKm, 0, 600)),
+    tareKg: Math.round(num(r.tareKg, 0, 5_000)),
     servicingCostPerYear: num(r.servicingCostPerYear, 0, 20_000),
     insurancePerYear: num(r.insurancePerYear, 0, 30_000),
-    ctpPerYear: num(r.ctpPerYear, 0, 5_000),
-    annualDepreciationPercent: num(r.annualDepreciationPercent, 0, 50, 13),
-    evFreeRegoYears: fuelType === 'ev' ? Math.round(num(r.evFreeRegoYears, 0, 5)) : 0,
-    depreciationModel: 'percentage',
-    hasLoan,
-    loanAmount: hasLoan ? num(r.loanAmount, 0, 1_000_000) : 0,
-    interestRate: num(r.interestRate, 0, 30, 7) || 7,
-    loanTermYears: Math.round(num(r.loanTermYears, 1, 10, 5)) || 5,
     sources: {
       purchasePrice: str(s.purchasePrice, 500),
       consumption: str(s.consumption, 500),
+      emissions: str(s.emissions, 500),
       servicing: str(s.servicing, 500),
       insurance: str(s.insurance, 500),
-      registration: str(s.registration, 500),
-      stampDuty: str(s.stampDuty, 500),
     },
+    citations: sanitizeCitations(citations),
   };
 }
 

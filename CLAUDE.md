@@ -7,11 +7,12 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `src/components/` — React UI components (CarCard, charts, ui primitives, AddCarModal, MobileNav)
 - `src/calculations/costEngine.ts` — all cost/depreciation calculations (`calculateCarResult`)
 - `src/types/car.ts` — core types (`CarConfig`, `YearlyCostBreakdown`, `CarCalculationResult`)
-- `src/data/defaults.ts` — default car config factory (`createDefaultCarConfig`)
+- `src/data/defaults.ts` — default car config factory (`createDefaultCarConfig`), fuel-type depreciation defaults
+- `src/data/vehicleCatalogue.ts` — built-in catalogue of popular AU cars (Pick a car), with sources and `CATALOGUE_AS_OF`; refresh quarterly
 - `src/api/carResearchApi.ts` — browser client for the app's own `/api/research` endpoint
 - `shared/research.ts` — shared by app + Worker: research types, AU states, prompt, input validation, response sanitiser, `safeHttpUrl`
 - `worker/index.ts` — Cloudflare Worker: `/api/research`, `/api/health`; everything else served from static assets
-- `src/calculations/actSpecific.ts` — ACT emissions-based motor vehicle duty (1 Sep 2025 and 1 Feb 2027 tables) and rego
+- `src/calculations/actSpecific.ts` — ACT emissions category (from official CO2, else estimated), motor vehicle duty (1 Sep 2025 and 1 Feb 2027 tables), private rego fee table (DI2026-146, update each July) + road rescue fee, MAI/CTP premium (update each May)
 - `tests/` — Vitest unit tests (`npm test`)
 - `src/utils/` — formatting (`formatCurrency`), color utilities, config merging (`carConfigMerger.ts`)
 - `src/state/` — app state management
@@ -21,6 +22,9 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 
 - `CarCalculationResult` contains `yearlyBreakdowns[]` with per-year fuel, servicing, insurance, ctp, registration, loanInterest, depreciation, vehicleValue
 - `CarCard.tsx` derives summary values inline from the calculation result — no engine changes needed for display-only features
+- Stamp duty, rego and CTP are calculated unless the car's `useCustomStampDuty` / `useCustomRego` / `useCustomCtp` is set; `resolveCarConfig` fills rego and CTP before the engine runs
+- Depreciation: `firstYearDepreciationPercent` in year 1, then `annualDepreciationPercent` each year (`vehicleValueAfter`)
+- Saved cars are migrated in `useLocalStorage.ts` `migrateCar` — add a fallback there for every new `CarConfig` field
 - The cost breakdown dropdown in CarCard shows: Input Cost (Purchase + Duty, Running Costs), Depreciation (Remaining Value), Net at Resale
 
 ## First-run Intro
@@ -65,13 +69,15 @@ The app is mobile-first. Below `md`, `App.tsx` shows one view at a time through 
 
 ## AI Car Research
 
+- Pick a car shows the built-in catalogue first; the AI lookup is the fallback for cars not in it.
 - Browser → `POST /api/research` → Worker → provider. The key is the Worker secret `AI_API_KEY`.
-- Config: `wrangler.jsonc` `vars` → `AI_PROVIDER` (openai | anthropic | zai | custom), `AI_MODEL`, optional `AI_ENDPOINT` (required for custom).
+- Config: `wrangler.jsonc` `vars` → `AI_PROVIDER` (gemini | openai | anthropic | zai | custom), `AI_MODEL`, optional `AI_ENDPOINT` (required for custom). Default is Gemini with Google Search grounding (`gemini-2.5-flash`, free grounded tier); grounding sources come back as `citations`.
+- The AI returns car facts only (price, fuel use, CO2, tare, servicing, insurance). It never sets duty, rego or CTP.
+- Results are cached per car for 30 days with the Workers Cache API (`researchCacheKey`; bump `CACHE_VERSION` when the prompt or result shape changes).
 - Local dev: secrets in `.dev.vars` (gitignored; see `.dev.vars.example`).
 - Rate limit: `RESEARCH_RATE_LIMITER` binding, 5 requests/min per IP. Cross-origin POSTs are rejected.
 - Model output is untrusted: always go through `sanitizeResearchResult`; render source links only via `safeHttpUrl`.
 - The AI Add button only shows when `/api/health` reports `aiConfigured: true`, so setting `AI_API_KEY` turns it on with no redeploy.
-- Researched stamp duty is stored with `useCustomStampDuty: true` (it's state-specific).
 
 **Modal flow stages**: `input` → `loading` (cancellable) → `summary` → `expanded`
 
