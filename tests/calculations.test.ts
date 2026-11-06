@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateActStampDuty, estimateActEmissionsCategory, getActRegistration } from '../src/calculations/actSpecific';
-import { calculateCarResult, cumulativeCostSeries, findBreakEvenYear, totalCost } from '../src/calculations/costEngine';
+import { calculateCarResult, cumulativeCostSeries, findBreakEvenYear, rankCarsByCost, totalCost } from '../src/calculations/costEngine';
 import { calculateLoanSchedule } from '../src/calculations/loanCalculator';
 import { createDefaultCarConfig, nextCarName } from '../src/data/defaults';
 
@@ -77,5 +77,19 @@ describe('cost engine', () => {
   it('gives unique default names', () => {
     expect(nextCarName(['Car 1', 'Car 3'])).toBe('Car 2');
     expect(createDefaultCarConfig('ev', ['Car 1']).name).toBe('Car 2');
+  });
+});
+
+describe('rankCarsByCost', () => {
+  it('sorts cheapest first, keeps each car\'s colour slot and matches totalCost on both bases', () => {
+    const dear = calculateCarResult({ ...createDefaultCarConfig('petrol'), purchasePrice: 90_000 }, 5);
+    const cheap = calculateCarResult({ ...createDefaultCarConfig('petrol'), purchasePrice: 20_000 }, 5);
+
+    for (const includeDepreciation of [true, false]) {
+      const ranked = rankCarsByCost([dear, cheap], includeDepreciation);
+      expect(ranked.map(r => r.index)).toEqual([1, 0]);
+      expect(ranked[0].total).toBe(totalCost(cheap, includeDepreciation));
+      expect(ranked[1].total).toBe(totalCost(dear, includeDepreciation));
+    }
   });
 });

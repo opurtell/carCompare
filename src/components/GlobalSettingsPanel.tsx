@@ -6,8 +6,8 @@ export function GlobalSettingsPanel() {
   const { globalDefaults } = state;
 
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-3">
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+    <div className="bg-white border border-gray-200 rounded-xl md:rounded-none md:border-x-0 md:border-t-0 p-4 md:px-6 md:py-3">
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-8 gap-y-3 md:gap-y-2">
         <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider shrink-0">
           Global Defaults
         </span>

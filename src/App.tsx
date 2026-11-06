@@ -1,34 +1,67 @@
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { CarCardList } from './components/CarCardList';
+import { ComparisonControls } from './components/ComparisonControls';
 import { ComparisonDashboard } from './components/ComparisonDashboard';
 import { Footer } from './components/Footer';
 import { GlobalSettingsPanel } from './components/GlobalSettingsPanel';
+import { MobileNav, type MobileView } from './components/MobileNav';
+import { ResetAllButton } from './components/ui/ResetAllButton';
 import { useApp } from './state/AppContext';
 import { useCarCalculations } from './hooks/useCarCalculations';
+import { useIsDesktop } from './hooks/useMediaQuery';
 
 function App() {
   const { state } = useApp();
   const results = useCarCalculations(state.cars, state.comparisonYears, state.globalDefaults);
+  const isDesktop = useIsDesktop();
+  // Returning users with a comparison ready land on their results.
+  const [view, setView] = useState<MobileView>(state.cars.length >= 2 ? 'compare' : 'cars');
+
+  function changeView(next: MobileView) {
+    setView(next);
+    window.scrollTo(0, 0);
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-dvh bg-gray-50 flex flex-col px-[env(safe-area-inset-left)] touch-manipulation">
       <Header />
-      <GlobalSettingsPanel />
+      {isDesktop && <GlobalSettingsPanel />}
 
-      <main className="flex-1 flex flex-col gap-8 py-6">
-        {/* Zone 1: Car Configuration */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-700 px-6 mb-3">Configure Cars</h2>
+      <main className="flex-1 flex flex-col gap-8 pb-24 md:py-6">
+        {/* Zone 1: Car Configuration. Kept mounted on phones so the open car survives tab switches. */}
+        <section className={isDesktop || view === 'cars' ? '' : 'hidden'}>
           <CarCardList />
         </section>
 
         {/* Zone 2: Comparison Dashboard */}
-        <section className="px-6">
-          <ComparisonDashboard results={results} years={state.comparisonYears} />
-        </section>
+        {(isDesktop || view === 'compare') && (
+          <section className="md:px-6">
+            {!isDesktop && (
+              <div className="sticky top-14 z-10 bg-gray-50 border-b border-gray-200 px-4 py-1 mb-4">
+                <ComparisonControls />
+              </div>
+            )}
+            <div className="px-4 md:px-0">
+              <ComparisonDashboard
+                results={results}
+                years={state.comparisonYears}
+                onAddCars={isDesktop ? undefined : () => changeView('cars')}
+              />
+            </div>
+          </section>
+        )}
+
+        {!isDesktop && view === 'settings' && (
+          <section className="flex flex-col gap-4 px-4 pt-4">
+            <GlobalSettingsPanel />
+            <ResetAllButton className="min-h-11 bg-white text-sm" />
+            <Footer />
+          </section>
+        )}
       </main>
 
-      <Footer />
+      {isDesktop ? <Footer /> : <MobileNav view={view} onChange={changeView} />}
     </div>
   );
 }

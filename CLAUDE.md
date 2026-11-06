@@ -4,7 +4,7 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 
 ## Project Structure
 
-- `src/components/` — React UI components (CarCard, charts, ui primitives, AddCarModal)
+- `src/components/` — React UI components (CarCard, charts, ui primitives, AddCarModal, MobileNav)
 - `src/calculations/costEngine.ts` — all cost/depreciation calculations (`calculateCarResult`)
 - `src/types/car.ts` — core types (`CarConfig`, `YearlyCostBreakdown`, `CarCalculationResult`)
 - `src/data/defaults.ts` — default car config factory (`createDefaultCarConfig`)
@@ -15,13 +15,24 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `tests/` — Vitest unit tests (`npm test`)
 - `src/utils/` — formatting (`formatCurrency`), color utilities, config merging (`carConfigMerger.ts`)
 - `src/state/` — app state management
-- `src/hooks/` — custom React hooks
+- `src/hooks/` — custom React hooks (`useIsDesktop` = Tailwind `md`, 768px)
 
 ## Key Architecture
 
 - `CarCalculationResult` contains `yearlyBreakdowns[]` with per-year fuel, servicing, insurance, ctp, registration, loanInterest, depreciation, vehicleValue
 - `CarCard.tsx` derives summary values inline from the calculation result — no engine changes needed for display-only features
 - The cost breakdown dropdown in CarCard shows: Input Cost (Purchase + Duty, Running Costs), Depreciation (Remaining Value), Net at Resale
+
+## Mobile Layout
+
+The app is mobile-first. Below `md`, `App.tsx` shows one view at a time through the bottom `MobileNav` (Cars, Compare, Settings); from `md` up everything is on one page.
+
+- Cars: one `CarCard` at a time, chosen with the chip rail in `CarCardList`. Cards stay mounted (hidden with CSS) so open sections survive switching. The summary is sticky above the tab bar.
+- Compare: `ComparisonControls` is sticky at the top; it sits in the `Header` on desktop. `TotalCostTable` pins its first column; `AnnualBreakdownChart` uses horizontal bars.
+- Dialogs use `ui/Modal` (bottom sheet on phones, centred dialog from `md`).
+- Inputs must be 16px below `md` (`text-base md:text-sm`) or iOS zooms on focus. Tap targets are at least 40px below `md` (`min-h-10`/`min-h-11 md:min-h-0`).
+- `title` tooltips never show on touch: `NumberInput` prints its `tooltip` under the field below `md`.
+- Recharts needs numbers, so charts read `useIsDesktop()` instead of using Tailwind classes.
 
 ## Commands
 

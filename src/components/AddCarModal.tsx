@@ -10,6 +10,7 @@ import { SliderInput } from './ui/SliderInput';
 import { ToggleSwitch } from './ui/ToggleSwitch';
 import { FuelTypePicker } from './ui/FuelTypePicker';
 import { Section } from './ui/Section';
+import { Modal } from './ui/Modal';
 
 interface AddCarModalProps {
   onClose: () => void;
@@ -34,15 +35,6 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
     state: 'ACT',
   });
   const abortRef = useRef<AbortController | null>(null);
-
-  // Close on Escape.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   // Cancel any in-flight research only when the modal unmounts.
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -164,6 +156,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
             </label>
             <input
               type="number"
+              inputMode="numeric"
               value={formData.year}
               onChange={e => {
                 const year = parseInt(e.target.value, 10);
@@ -217,14 +210,14 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleResearch}
             disabled={!formData.make || !formData.model || !formData.year}
-            className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             Research Vehicle
           </button>
@@ -246,7 +239,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         <button
           type="button"
           onClick={handleCancelResearch}
-          className="mt-6 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="mt-6 min-h-11 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
         >
           Cancel
         </button>
@@ -264,9 +257,9 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
       <div className="space-y-4">
         {/* Compact card */}
         <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-100">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="font-semibold text-gray-800 text-lg">{carConfig.name}</h3>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-800 text-lg break-words">{carConfig.name}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                   carConfig.fuelType === 'ev' ? 'bg-green-100 text-green-700' :
@@ -325,7 +318,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
           <div>
             <button
               onClick={() => setSourcesOpen(!sourcesOpen)}
-              className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              className="min-h-11 md:min-h-0 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
             >
               <span>Sources</span>
               <svg
@@ -372,14 +365,14 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         <div className="flex gap-3 mt-4">
           <button
             onClick={handleEditDetails}
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Edit details
           </button>
           <button
             onClick={handleAddToComparison}
             disabled={atCap}
-            className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             title={atCap ? 'Comparison is full (5 cars max)' : undefined}
           >
             Add to Comparison
@@ -402,7 +395,7 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
     const showPhevSplit = carConfig.fuelType === 'phev';
 
     return (
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div>
         <div className="py-2">
           <FuelTypePicker value={carConfig.fuelType} onChange={handleFuelTypeChange} />
         </div>
@@ -603,24 +596,24 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
         </Section>
 
         {/* Actions */}
-        <div className="flex gap-3 mt-4 pt-4 border-t">
+        <div className="sticky -bottom-4 -mx-5 -mb-4 px-5 py-3 flex gap-3 mt-4 bg-white border-t border-gray-200">
           <button
             onClick={() => setStage('summary')}
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Back to Summary
           </button>
           <button
             onClick={handleAddToComparison}
             disabled={atCap}
-            className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             title={atCap ? 'Comparison is full (5 cars max)' : undefined}
           >
             Add to Comparison
           </button>
         </div>
         {atCap && (
-          <div className="text-xs text-gray-500 text-center mt-2">
+          <div className="text-xs text-gray-500 text-center pt-5">
             Remove a car from the comparison to add another.
           </div>
         )}
@@ -629,40 +622,19 @@ export function AddCarModal({ onClose }: AddCarModalProps) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      title={
+        <>
+          <span className="text-purple-500">✨</span>
+          <span>AI-Powered Car Research</span>
+        </>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-car-title"
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h2 id="add-car-title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <span className="text-purple-500">✨</span>
-            <span>AI-Powered Car Research</span>
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-            aria-label="Close"
-          >
-            &times;
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 px-5 py-4">
-          {stage === 'input' && renderInputStage()}
-          {stage === 'loading' && renderLoadingStage()}
-          {stage === 'summary' && renderSummaryStage()}
-          {stage === 'expanded' && renderExpandedStage()}
-        </div>
-      </div>
-    </div>
+      {stage === 'input' && renderInputStage()}
+      {stage === 'loading' && renderLoadingStage()}
+      {stage === 'summary' && renderSummaryStage()}
+      {stage === 'expanded' && renderExpandedStage()}
+    </Modal>
   );
 }

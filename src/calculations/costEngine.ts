@@ -153,6 +153,13 @@ export function totalCost(result: CarCalculationResult, includeDepreciation: boo
   return series[series.length - 1];
 }
 
+/** Cars cheapest-first on the same basis as the table and chart; `index` is the car's colour slot. */
+export function rankCarsByCost(results: CarCalculationResult[], includeDepreciation: boolean) {
+  return results
+    .map((result, index) => ({ result, index, total: totalCost(result, includeDepreciation) }))
+    .sort((a, b) => a.total - b.total);
+}
+
 /**
  * First year in which the two cars' cumulative costs cross over (year 1..N).
  * Returns null if one car is cheaper (or equal) the whole way through.

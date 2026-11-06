@@ -6,7 +6,7 @@ interface ToggleSwitchProps {
 
 export function ToggleSwitch({ label, checked, onChange }: ToggleSwitchProps) {
   return (
-    <label className="flex items-center justify-between gap-2 text-sm cursor-pointer">
+    <label className="flex items-center justify-between gap-2 min-h-10 md:min-h-0 text-sm cursor-pointer">
       <span className="text-gray-600">{label}</span>
       <button
         type="button"
