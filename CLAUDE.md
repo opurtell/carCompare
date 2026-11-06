@@ -23,6 +23,13 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `CarCard.tsx` derives summary values inline from the calculation result — no engine changes needed for display-only features
 - The cost breakdown dropdown in CarCard shows: Input Cost (Purchase + Duty, Running Costs), Depreciation (Remaining Value), Net at Resale
 
+## First-run Intro
+
+- `IntroModal` is a five-step walkthrough, shown once from `App.tsx`. Closing it any way (Skip, ✕, Escape, backdrop, Get started) records the dismissal.
+- The dismissal lives in its own localStorage key (`src/utils/introStorage.ts`), so Reset All doesn't bring the intro back.
+- Re-open it from Settings on phones and "How it works" in the header on desktop.
+- The wording is in `src/data/introSteps.ts`, with separate phone and desktop text where the layouts differ. Update it when a feature it describes changes.
+
 ## Mobile Layout
 
 The app is mobile-first. Below `md`, `App.tsx` shows one view at a time through the bottom `MobileNav` (Cars, Compare, Settings); from `md` up everything is on one page.
