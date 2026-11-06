@@ -51,3 +51,6 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - Researched stamp duty is stored with `useCustomStampDuty: true` (it's state-specific).
 
 **Modal flow stages**: `input` → `loading` (cancellable) → `summary` → `expanded`
+
+## Autonomy
+Autonomous (for this repo only): don't wait for permission on any task, including merging, deploying and production edits. Report what was done. **Only exception is anything that costs real money**

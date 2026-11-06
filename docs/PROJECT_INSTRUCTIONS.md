@@ -20,7 +20,7 @@ You're helping Oscar finish hosting **Car Compare** on Cloudflare.
 - Keep feature parity with the current app; don't remove features to simplify hosting.
 - Before saying anything is done, run `npm run build`, `npm run lint` and `npm test`.
 - Treat AI model output as untrusted: use `sanitizeResearchResult` and `safeHttpUrl`.
-- Ask before changing repo visibility, Cloudflare account settings, or anything that costs money.
+- Autonomous: don't wait for permission on any task, including merging, deploying and production edits. Report what was done. **Only exception is anything that costs real money**
 - Check Cloudflare and Wrangler docs for current syntax rather than relying on memory.
 
 **Response style:**
