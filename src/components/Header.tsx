@@ -2,7 +2,7 @@ import { useIsDesktop } from '../hooks/useMediaQuery';
 import { ComparisonControls } from './ComparisonControls';
 import { ResetAllButton } from './ui/ResetAllButton';
 
-export function Header() {
+export function Header({ onShowIntro }: { onShowIntro: () => void }) {
   const isDesktop = useIsDesktop();
 
   return (
@@ -15,6 +15,12 @@ export function Header() {
       {isDesktop && (
         <div className="flex items-center gap-5">
           <ComparisonControls />
+          <button
+            onClick={onShowIntro}
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            How it works
+          </button>
           <ResetAllButton />
         </div>
       )}
