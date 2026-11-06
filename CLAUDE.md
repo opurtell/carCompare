@@ -23,6 +23,11 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `CarCard.tsx` derives summary values inline from the calculation result — no engine changes needed for display-only features
 - The cost breakdown dropdown in CarCard shows: Input Cost (Purchase + Duty, Running Costs), Depreciation (Remaining Value), Net at Resale
 
+## Hosting
+
+- Production: `https://carcompare.oscarpurtell.com`, a Workers Custom Domain declared in `wrangler.jsonc` `routes`. The `workers.dev` URL also stays on (`workers_dev: true`).
+- `/api/research` compares `Origin` with the request's own origin, so it works on either hostname with no allow-list.
+
 ## Commands
 
 - `npm run dev` — start dev server
