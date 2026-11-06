@@ -14,7 +14,7 @@ export function Section({ title, children, defaultOpen = true }: SectionProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full py-2 text-xs font-semibold
+        className="flex items-center justify-between w-full py-3 md:py-2 text-xs font-semibold
                    text-gray-500 uppercase tracking-wider hover:text-gray-700"
       >
         {title}

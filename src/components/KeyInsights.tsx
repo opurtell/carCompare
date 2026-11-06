@@ -1,7 +1,7 @@
 import type { CarCalculationResult } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
-import { findBreakEvenYear, totalCost } from '../calculations/costEngine';
+import { findBreakEvenYear, rankCarsByCost } from '../calculations/costEngine';
 import { useApp } from '../state/AppContext';
 
 interface KeyInsightsProps {
@@ -14,8 +14,7 @@ export function KeyInsights({ results, years }: KeyInsightsProps) {
   if (results.length < 2) return null;
 
   // Cheapest overall, using the same basis as the table/chart (net cost vs cash outlay)
-  const withTotals = results.map(r => ({ result: r, total: totalCost(r, showDepreciation) }));
-  const sorted = [...withTotals].sort((a, b) => a.total - b.total);
+  const sorted = rankCarsByCost(results, showDepreciation);
   const cheapest = sorted[0].result;
   const mostExpensive = sorted[sorted.length - 1].result;
   const cheapestTotal = sorted[0].total;
@@ -37,16 +36,14 @@ export function KeyInsights({ results, years }: KeyInsightsProps) {
     }
   }
 
-  const cheapestIndex = results.findIndex(r => r.carId === cheapest.carId);
-
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-5">
+    <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-4 md:p-5">
       <h3 className="text-lg font-semibold text-gray-700 mb-3">Key Insights</h3>
       <div className="flex flex-col gap-2 text-sm text-gray-700">
         <p>
           <span
             className="font-bold"
-            style={{ color: getCarColor(cheapestIndex).hex }}
+            style={{ color: getCarColor(sorted[0].index).hex }}
           >
             {cheapest.carName}
           </span>

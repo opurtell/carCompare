@@ -14,13 +14,13 @@ interface FuelTypePickerProps {
 
 export function FuelTypePicker({ value, onChange }: FuelTypePickerProps) {
   return (
-    <div className="flex gap-1">
+    <div className="grid grid-cols-4 md:flex gap-1">
       {FUEL_TYPES.map(ft => (
         <button
           key={ft.value}
           type="button"
           onClick={() => onChange(ft.value)}
-          className={`px-3 py-1 text-xs font-medium rounded-full transition-colors
+          className={`px-3 py-2 md:py-1 text-xs font-medium rounded-full transition-colors
             ${
               value === ft.value
                 ? 'bg-blue-500 text-white'

@@ -13,20 +13,24 @@ import { createDefaultCarConfig } from '../data/defaults';
 import { resolveCarConfig } from '../utils/resolveCarConfig';
 import { useApp } from '../state/AppContext';
 import { isCarDirtyFromLibrary } from '../utils/isCarDirty';
+import { useIsDesktop } from '../hooks/useMediaQuery';
 
 interface CarCardProps {
   car: CarConfig;
   index: number;
+  /** Phones show one car at a time; from `md` up every card is visible. */
+  isActive: boolean;
   comparisonYears: number;
   globalDefaults: GlobalDefaults;
   onUpdate: (car: CarConfig) => void;
   onRemove: (carId: string) => void;
 }
 
-export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate, onRemove }: CarCardProps) {
+export function CarCard({ car, index, isActive, comparisonYears, globalDefaults, onUpdate, onRemove }: CarCardProps) {
   const [costBreakdownOpen, setCostBreakdownOpen] = useState(false);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const { state, saveToLibrary, updateLibraryEntry } = useApp();
+  const isDesktop = useIsDesktop();
   const { showDepreciation } = state;
   const isLinked = Boolean(car.libraryId);
   const isDirty = isCarDirtyFromLibrary(car, state.library);
@@ -71,24 +75,25 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
 
   return (
     <div
-      className="w-80 shrink-0 rounded-xl border-2 bg-white shadow-sm flex flex-col relative"
+      className={`${isActive ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 rounded-xl border-2 bg-white shadow-sm flex-col relative`}
       style={{ borderColor: color.hex }}
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-3 rounded-t-lg"
+        className="flex items-center justify-between gap-2 pl-4 pr-1 md:pr-4 py-1 md:py-3 rounded-t-lg"
         style={{ backgroundColor: color.bg }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <span
-            className="w-3 h-3 rounded-full"
+            className="w-3 h-3 shrink-0 rounded-full"
             style={{ backgroundColor: color.hex }}
           />
           <input
             type="text"
             value={car.name}
             onChange={e => update({ name: e.target.value })}
-            className="bg-transparent font-semibold text-gray-800 w-36 focus:outline-none
+            aria-label="Car name"
+            className="bg-transparent font-semibold text-gray-800 w-full md:w-36 min-w-0 py-2 md:py-0 focus:outline-none
                        focus:border-b focus:border-gray-400"
           />
         </div>
@@ -100,7 +105,8 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
               onRemove(car.id);
             }
           }}
-          className="text-gray-400 hover:text-red-500 text-lg leading-none"
+          className="w-11 h-11 md:w-auto md:h-auto shrink-0 text-gray-400 hover:text-red-500 text-2xl md:text-lg leading-none"
+          aria-label={`Remove ${car.name}`}
           title="Remove car"
         >
           &times;
@@ -112,7 +118,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         {!isLinked ? (
           <button
             onClick={() => saveToLibrary(car)}
-            className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500
+            className="text-xs px-3 md:px-2.5 py-2 md:py-1 rounded-full bg-gray-100 text-gray-500
                        hover:bg-blue-50 hover:text-blue-600 border border-gray-200"
           >
             Save to library
@@ -125,7 +131,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         {isLinked && isDirty && (
           <button
             onClick={() => updateLibraryEntry(car.libraryId!, car)}
-            className="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700
+            className="text-xs px-3 md:px-2.5 py-2 md:py-1 rounded-full bg-amber-50 text-amber-700
                        hover:bg-amber-100 border border-amber-200"
           >
             Update library entry
@@ -160,7 +166,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
             <div className="flex justify-end -mt-1">
               <button
                 onClick={() => update({ useCustomStampDuty: false })}
-                className="text-xs text-blue-500 hover:text-blue-700"
+                className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
               >
                 Reset to auto
               </button>
@@ -202,7 +208,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </Section>
 
         {/* Fuel & Energy */}
-        <Section title="Fuel & Energy">
+        <Section title="Fuel & Energy" defaultOpen={isDesktop}>
           {showPetrol && (
             <>
               <NumberInput
@@ -217,7 +223,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
                 <div className="flex justify-end -mt-1">
                   <button
                     onClick={() => update({ useCustomPetrolPrice: false })}
-                    className="text-xs text-blue-500 hover:text-blue-700"
+                    className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
                   >
                     Reset to global
                   </button>
@@ -246,7 +252,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
                 <div className="flex justify-end -mt-1">
                   <button
                     onClick={() => update({ useCustomElectricityPrice: false })}
-                    className="text-xs text-blue-500 hover:text-blue-700"
+                    className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
                   >
                     Reset to global
                   </button>
@@ -299,7 +305,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </Section>
 
         {/* Driving */}
-        <Section title="Driving">
+        <Section title="Driving" defaultOpen={isDesktop}>
           <NumberInput
             label="Annual Km"
             value={car.useCustomAnnualKm ? car.annualKm : globalDefaults.annualKm}
@@ -312,7 +318,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
             <div className="flex justify-end -mt-1">
               <button
                 onClick={() => update({ useCustomAnnualKm: false })}
-                className="text-xs text-blue-500 hover:text-blue-700"
+                className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
               >
                 Reset to global
               </button>
@@ -321,7 +327,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </Section>
 
         {/* Ongoing Costs */}
-        <Section title="Ongoing Costs">
+        <Section title="Ongoing Costs" defaultOpen={isDesktop}>
           <NumberInput
             label="Servicing"
             value={car.servicingCostPerYear}
@@ -366,7 +372,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </Section>
 
         {/* Depreciation */}
-        <Section title="Depreciation">
+        <Section title="Depreciation" defaultOpen={isDesktop}>
           <SliderInput
             label="Annual Rate"
             value={car.annualDepreciationPercent}
@@ -378,26 +384,27 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </Section>
       </div>
 
-      {/* Summary badge */}
+      {/* Summary badge: pinned above the tab bar on phones so totals stay visible while editing */}
       <div
-        className="px-4 py-4 border-t rounded-b-lg"
+        className="sticky md:static bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[5] px-4 pt-3 pb-1 md:py-4
+                   border-t rounded-b-lg shadow-[0_-2px_6px_rgba(0,0,0,0.06)] md:shadow-none"
         style={{ backgroundColor: color.bg, borderColor: color.hex + '33' }}
         aria-label={`${comparisonYears} year costs: Total outlay ${formatCurrency(inputCost)}. Net at Resale: ${netPositionAtResale < 0 ? 'negative' : netPositionAtResale > 0 ? 'positive' : 'zero'} ${formatCurrency(netPositionAtResale)}`}
       >
-        <div className="space-y-1 text-center">
+        <div className="grid grid-cols-2 gap-2 md:block md:space-y-1 text-center">
           {/* Total Cost */}
-          <div className="flex items-baseline justify-center gap-1.5">
-            <span className="text-xs text-gray-600">Total outlay:</span>
-            <span className="text-xl font-bold" style={{ color: color.hex }}>
+          <div className="flex flex-col md:flex-row items-center md:items-baseline justify-center md:gap-1.5">
+            <span className="text-xs text-gray-600">{comparisonYears}-yr total outlay</span>
+            <span className="text-lg md:text-xl font-bold" style={{ color: color.hex }}>
               {formatCurrency(inputCost)}
             </span>
           </div>
 
           {/* Net at Resale */}
-          <div className="flex items-baseline justify-center gap-1.5">
-            <span className="text-xs text-gray-600">Net at Resale:</span>
+          <div className="flex flex-col md:flex-row items-center md:items-baseline justify-center md:gap-1.5">
+            <span className="text-xs text-gray-600">Net at Resale</span>
             <span
-              className="text-xl font-bold"
+              className="text-lg md:text-xl font-bold"
               style={{
                 color:
                   netPositionAtResale < 0
@@ -413,7 +420,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
         </div>
         <button
           onClick={() => setCostBreakdownOpen(o => !o)}
-          className="w-full flex items-center justify-center gap-1 mt-2 text-xs text-gray-500 hover:text-gray-700"
+          className="w-full min-h-9 md:min-h-0 flex items-center justify-center gap-1 md:mt-2 text-xs text-gray-500 hover:text-gray-700"
           aria-expanded={costBreakdownOpen}
           aria-controls={`breakdown-${car.id}`}
         >
@@ -429,7 +436,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
           </svg>
         </button>
         {costBreakdownOpen && (
-          <div id={`breakdown-${car.id}`} className="mt-2 space-y-1 text-sm">
+          <div id={`breakdown-${car.id}`} className="mt-2 pb-2 md:pb-0 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Input Cost</span>
               <span className="font-medium text-gray-800">{formatCurrency(inputCost)}</span>
@@ -476,7 +483,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
 
       {/* Removal confirmation */}
       {confirmingRemoval && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/95 p-4">
+        <div className="absolute inset-0 z-10 flex items-start md:items-center justify-center rounded-xl bg-white/95 p-4 pt-16 md:pt-4">
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 w-full">
             <p className="text-sm font-medium text-amber-900 mb-3">
               Save changes back to library before removing?
@@ -487,19 +494,19 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
                   updateLibraryEntry(car.libraryId!, car);
                   onRemove(car.id);
                 }}
-                className="text-xs px-3 py-1.5 rounded bg-green-700 text-white hover:bg-green-800"
+                className="min-h-11 md:min-h-0 text-xs px-3 py-1.5 rounded bg-green-700 text-white hover:bg-green-800"
               >
                 Yes, update library
               </button>
               <button
                 onClick={() => onRemove(car.id)}
-                className="text-xs px-3 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className="min-h-11 md:min-h-0 text-xs px-3 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
               >
                 No, just remove
               </button>
               <button
                 onClick={() => setConfirmingRemoval(false)}
-                className="text-xs px-3 py-1.5 rounded text-gray-400 hover:text-gray-600"
+                className="min-h-11 md:min-h-0 text-xs px-3 py-1.5 rounded text-gray-400 hover:text-gray-600"
               >
                 Cancel
               </button>

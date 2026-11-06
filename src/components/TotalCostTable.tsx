@@ -39,13 +39,25 @@ export function TotalCostTable({ results }: TotalCostTableProps) {
   ];
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 md:p-4">
+      <h3 className="text-lg font-semibold text-gray-700 mb-3 px-1">Cost Breakdown</h3>
+      {results.length > 2 && (
+        <p className="md:hidden text-xs text-gray-500 mb-2 px-1">Swipe the table sideways to see every car.</p>
+      )}
+      {/* Category column stays pinned so a row is readable while swiping across cars. */}
+      <div className="overflow-x-auto">
+      <table className="w-full text-sm border-separate border-spacing-0">
         <thead>
-          <tr className="border-b-2 border-gray-200">
-            <th className="text-left py-2 px-3 text-gray-500 font-medium">Category</th>
+          <tr>
+            <th className="sticky left-0 z-[1] shadow-[1px_0_0_#e5e7eb] md:shadow-none bg-white text-left py-2 pl-1 pr-3 text-gray-500 font-medium border-b-2 border-gray-200">
+              Category
+            </th>
             {results.map((r, i) => (
-              <th key={r.carId} className="text-right py-2 px-3 font-medium" style={{ color: getCarColor(i).hex }}>
+              <th
+                key={r.carId}
+                className="text-right align-bottom py-2 px-3 font-medium min-w-[6rem] border-b-2 border-gray-200"
+                style={{ color: getCarColor(i).hex }}
+              >
                 {r.carName}
               </th>
             ))}
@@ -63,13 +75,19 @@ export function TotalCostTable({ results }: TotalCostTableProps) {
             return (
               <tr
                 key={row.label}
-                className={`border-b border-gray-100 ${isTotal ? 'font-bold bg-gray-50' : ''}`}
+                className={isTotal ? 'font-bold' : ''}
               >
-                <td className="py-2 px-3 text-gray-600">{row.label}</td>
+                <td
+                  className={`sticky left-0 z-[1] shadow-[1px_0_0_#e5e7eb] md:shadow-none py-2 pl-1 pr-3 text-gray-600 border-b border-gray-100 whitespace-nowrap ${
+                    isTotal ? 'bg-gray-50' : 'bg-white'
+                  }`}
+                >
+                  {row.label}
+                </td>
                 {values.map((val, i) => (
                   <td
                     key={results[i].carId}
-                    className={`py-2 px-3 text-right ${
+                    className={`py-2 px-3 text-right border-b border-gray-100 ${isTotal ? 'bg-gray-50' : ''} ${
                       !allZero && val === minVal && !isTotal
                         ? 'text-green-600 font-medium'
                         : ''
@@ -85,6 +103,7 @@ export function TotalCostTable({ results }: TotalCostTableProps) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

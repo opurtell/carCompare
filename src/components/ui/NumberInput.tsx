@@ -49,9 +49,10 @@ export function NumberInput({
   }
 
   return (
-    <label className="flex items-center justify-between gap-2 text-sm" title={tooltip}>
-      <span className="text-gray-600 shrink-0">{label}</span>
-      <div className="flex items-center gap-1">
+    <label className="block text-sm" title={tooltip}>
+      <div className="flex items-center justify-between gap-2">
+      <span className="text-gray-600 min-w-0">{label}</span>
+      <div className="flex items-center gap-1 shrink-0">
         {prefix && <span className="text-gray-400 text-xs">{prefix}</span>}
         <input
           type="number"
@@ -61,15 +62,19 @@ export function NumberInput({
             setDraft(e.target.value);
             commit(e.target.value);
           }}
+          onFocus={e => e.target.select()}
           onBlur={() => setDraft(null)}
           min={min}
           max={max}
           step={step}
-          className="w-24 px-2 py-1 text-right text-sm border border-gray-300 rounded
+          className="w-24 px-2 py-2 md:py-1 text-right text-base md:text-sm border border-gray-300 rounded
                      focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
         />
         {suffix && <span className="text-gray-400 text-xs">{suffix}</span>}
       </div>
+      </div>
+      {/* `title` never shows on touch screens, so spell the hint out there. */}
+      {tooltip && <span className="block md:hidden mt-1 text-xs text-gray-400">{tooltip}</span>}
     </label>
   );
 }

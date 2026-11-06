@@ -9,8 +9,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { CarCalculationResult } from '../types/car';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, shortName } from '../utils/formatters';
 import { useApp } from '../state/AppContext';
+import { useIsDesktop } from '../hooks/useMediaQuery';
 
 interface AnnualBreakdownChartProps {
   results: CarCalculationResult[];
@@ -26,8 +27,11 @@ const COST_CATEGORIES = [
   { key: 'loanInterest', label: 'Loan Interest', color: '#84cc16' },
 ] as const;
 
+const formatThousands = (v: number) => `$${(v / 1000).toFixed(0)}k`;
+
 export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
   const { state: { showDepreciation } } = useApp();
+  const isDesktop = useIsDesktop();
   if (results.length < 1) return null;
 
   const categories = showDepreciation
@@ -64,21 +68,32 @@ export function AnnualBreakdownChart({ results }: AnnualBreakdownChartProps) {
   });
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold text-gray-700 mb-3">Average Annual Cost Breakdown</h3>
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+    <div className="bg-white rounded-xl border border-gray-200 p-3 md:p-4">
+      <h3 className="text-lg font-semibold text-gray-700 mb-3 px-1">Average Annual Cost Breakdown</h3>
+      {/* Horizontal bars on phones: car names don't fit side by side along an x axis. */}
+      <ResponsiveContainer width="100%" height={isDesktop ? 350 : results.length * 52 + 110}>
+        <BarChart
+          data={data}
+          layout={isDesktop ? 'horizontal' : 'vertical'}
+          style={isDesktop ? undefined : { outline: 'none' }}
+          margin={isDesktop ? { top: 5, right: 20, bottom: 5, left: 20 } : { top: 5, right: 12, bottom: 0, left: 0 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <YAxis
-            tick={{ fontSize: 12 }}
-            tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-          />
+          {isDesktop ? (
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          ) : (
+            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={formatThousands} />
+          )}
+          {isDesktop ? (
+            <YAxis tick={{ fontSize: 12 }} tickFormatter={formatThousands} />
+          ) : (
+            <YAxis type="category" dataKey="name" width={84} tick={{ fontSize: 11 }} tickFormatter={(name: string) => shortName(name)} />
+          )}
           <Tooltip
             formatter={(value, name) => [formatCurrency(Number(value)), String(name)]}
             contentStyle={{ fontSize: 13 }}
           />
-          <Legend />
+          <Legend wrapperStyle={{ fontSize: isDesktop ? 14 : 12 }} />
           {categories.map(cat => (
             <Bar
               key={cat.key}

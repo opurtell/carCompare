@@ -12,6 +12,11 @@ const currencyFormatterCents = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
 });
 
+/** Keeps long car names from overrunning chart axes and tooltips on phones. */
+export function shortName(name: string, max = 12): string {
+  return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+}
+
 export function formatCurrency(value: number): string {
   return currencyFormatter.format(value);
 }

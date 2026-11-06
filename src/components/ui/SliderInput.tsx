@@ -32,7 +32,7 @@ export function SliderInput({
         min={min}
         max={max}
         step={step}
-        className="w-full accent-blue-500"
+        className="w-full h-8 md:h-auto accent-blue-500"
       />
     </label>
   );
