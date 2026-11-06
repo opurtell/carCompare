@@ -1,30 +1,42 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { CarCard } from './CarCard';
 import { createDefaultCarConfig } from '../data/defaults';
 import { LibraryModal } from './LibraryModal';
 import { AddCarModal } from './AddCarModal';
+import { isAiAvailable } from '../api/carResearchApi';
 
 export function CarCardList() {
   const { state, addCar, updateCar, removeCar } = useApp();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [addCarModalOpen, setAddCarModalOpen] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    isAiAvailable(controller.signal).then(available => {
+      if (!controller.signal.aborted) setAiAvailable(available);
+    });
+    return () => controller.abort();
+  }, []);
 
   return (
     <>
       {/* Library and AI Add button row */}
       <div className="flex justify-end px-4 pb-2 gap-2">
-        <button
-          onClick={() => setAddCarModalOpen(true)}
-          disabled={state.cars.length >= 5}
-          className="text-xs px-3 py-1.5 rounded-md bg-purple-50 text-purple-700
-                     hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
-                     disabled:opacity-40 disabled:cursor-not-allowed"
-          title={state.cars.length >= 5 ? 'Comparison is full (5 cars max)' : 'AI-powered car research'}
-        >
-          <span>✨</span>
-          <span>AI Add</span>
-        </button>
+        {aiAvailable && (
+          <button
+            onClick={() => setAddCarModalOpen(true)}
+            disabled={state.cars.length >= 5}
+            className="text-xs px-3 py-1.5 rounded-md bg-purple-50 text-purple-700
+                       hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+            title={state.cars.length >= 5 ? 'Comparison is full (5 cars max)' : 'AI-powered car research'}
+          >
+            <span>✨</span>
+            <span>AI Add</span>
+          </button>
+        )}
         <button
           onClick={() => setLibraryOpen(true)}
           className="text-xs px-3 py-1.5 rounded-md bg-gray-100 text-gray-600

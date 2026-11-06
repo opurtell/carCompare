@@ -47,6 +47,7 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - Local dev: secrets in `.dev.vars` (gitignored; see `.dev.vars.example`).
 - Rate limit: `RESEARCH_RATE_LIMITER` binding, 5 requests/min per IP. Cross-origin POSTs are rejected.
 - Model output is untrusted: always go through `sanitizeResearchResult`; render source links only via `safeHttpUrl`.
+- The AI Add button only shows when `/api/health` reports `aiConfigured: true`, so setting `AI_API_KEY` turns it on with no redeploy.
 - Researched stamp duty is stored with `useCustomStampDuty: true` (it's state-specific).
 
 **Modal flow stages**: `input` → `loading` (cancellable) → `summary` → `expanded`
