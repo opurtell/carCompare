@@ -21,9 +21,20 @@ export interface CarConfig {
   servicingCostPerYear: number;
   insurancePerYear: number;
   ctpPerYear: number;
+  /** false = ACT MAI premium constant; true = user's own figure in ctpPerYear. */
+  useCustomCtp: boolean;
   regoPerYear: number;
+  /** false = calculated from the ACT fee table; true = user's own figure in regoPerYear. */
+  useCustomRego: boolean;
   evFreeRegoYears: number;
+  /** Official combined CO2 (Green Vehicle Guide). Unknown → estimated from fuel use. */
+  co2GPerKm?: number;
+  /** Tare mass. Unknown → treated as under the 2,505 kg rego step. */
+  tareKg?: number;
   depreciationModel: DepreciationModel;
+  /** Value lost in year 1 (new cars drop fastest in the first year). */
+  firstYearDepreciationPercent: number;
+  /** Value lost each year after the first. */
   annualDepreciationPercent: number;
   hasLoan: boolean;
   loanAmount: number;

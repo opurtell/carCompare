@@ -34,12 +34,18 @@ function calculateFuelCost(car: CarConfig): number {
   }
 }
 
-function calculateDepreciation(purchasePrice: number, rate: number, year: number): {
+/** Value after `year` years: a first-year drop, then a steady annual rate. */
+export function vehicleValueAfter(purchasePrice: number, firstYearRate: number, rate: number, year: number): number {
+  if (year <= 0) return purchasePrice;
+  return purchasePrice * (1 - firstYearRate / 100) * Math.pow(1 - rate / 100, year - 1);
+}
+
+function calculateDepreciation(purchasePrice: number, firstYearRate: number, rate: number, year: number): {
   depreciation: number;
   vehicleValue: number;
 } {
-  const previousValue = purchasePrice * Math.pow(1 - rate / 100, year - 1);
-  const currentValue = purchasePrice * Math.pow(1 - rate / 100, year);
+  const previousValue = vehicleValueAfter(purchasePrice, firstYearRate, rate, year - 1);
+  const currentValue = vehicleValueAfter(purchasePrice, firstYearRate, rate, year);
   return {
     depreciation: previousValue - currentValue,
     vehicleValue: currentValue,
@@ -68,6 +74,7 @@ export function calculateYearlyCosts(
 
     const { depreciation, vehicleValue } = calculateDepreciation(
       car.purchasePrice,
+      car.firstYearDepreciationPercent ?? car.annualDepreciationPercent,
       car.annualDepreciationPercent,
       year
     );

@@ -8,7 +8,7 @@ import { Section } from './ui/Section';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
 import { calculateCarResult } from '../calculations/costEngine';
-import { autoStampDutyFor, estimateActEmissionsCategory } from '../calculations/actSpecific';
+import { ACT_CTP_PREMIUM, autoRegoFor, autoStampDutyFor, emissionsCategoryFor } from '../calculations/actSpecific';
 import { createDefaultCarConfig } from '../data/defaults';
 import { resolveCarConfig } from '../utils/resolveCarConfig';
 import { useApp } from '../state/AppContext';
@@ -36,7 +36,8 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
   const isDirty = isCarDirtyFromLibrary(car, state.library);
   const color = getCarColor(index);
   const autoStampDuty = autoStampDutyFor(car);
-  const emissionsCategory = estimateActEmissionsCategory(car.fuelType, car.petrolConsumption);
+  const emissionsCategory = emissionsCategoryFor(car);
+  const autoRego = autoRegoFor(car);
   const resolvedCar = resolveCarConfig(car, globalDefaults);
   const result = calculateCarResult(resolvedCar, comparisonYears);
 
@@ -66,6 +67,10 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
       stampDuty: defaults.stampDuty,
       useCustomStampDuty: false,
       evFreeRegoYears: defaults.evFreeRegoYears,
+      // CO2 belongs to the old powertrain; the rego and duty category is re-estimated.
+      co2GPerKm: fuelType === 'ev' ? undefined : car.co2GPerKm,
+      firstYearDepreciationPercent: defaults.firstYearDepreciationPercent,
+      annualDepreciationPercent: defaults.annualDepreciationPercent,
     });
   }
 
@@ -160,7 +165,7 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
             value={car.useCustomStampDuty ? car.stampDuty : autoStampDuty}
             onChange={v => update({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
-            tooltip={`Auto-calculated using ACT emissions-based duty (estimated category ${emissionsCategory}). Edit to override.`}
+            tooltip={`Auto-calculated using ACT emissions-based duty (category ${emissionsCategory}). Edit to override.`}
           />
           {car.useCustomStampDuty && (
             <div className="flex justify-end -mt-1">
@@ -172,6 +177,29 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
               </button>
             </div>
           )}
+          {car.fuelType !== 'ev' && (
+            <NumberInput
+              label="CO₂ Emissions"
+              value={car.co2GPerKm ?? 0}
+              onChange={v => update({ co2GPerKm: v > 0 ? v : undefined })}
+              suffix="g/km"
+              max={600}
+              integer
+              tooltip={car.co2GPerKm
+                ? `Official combined CO₂ sets the ACT category (${emissionsCategory}) for duty and rego.`
+                : `Optional: enter the official combined CO₂ (Green Vehicle Guide). 0 = estimated from fuel use (category ${emissionsCategory}).`}
+            />
+          )}
+          <NumberInput
+            label="Tare Mass"
+            value={car.tareKg ?? 0}
+            onChange={v => update({ tareKg: v > 0 ? v : undefined })}
+            suffix="kg"
+            max={5000}
+            step={10}
+            integer
+            tooltip="Optional. ACT rego roughly doubles from 2,505 kg tare. 0 = assume under that."
+          />
           <ToggleSwitch
             label="Car Loan"
             checked={car.hasLoan}
@@ -344,19 +372,40 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
           />
           <NumberInput
             label="CTP"
-            value={car.ctpPerYear}
-            onChange={v => update({ ctpPerYear: v })}
+            value={car.useCustomCtp ? car.ctpPerYear : ACT_CTP_PREMIUM}
+            onChange={v => update({ ctpPerYear: v, useCustomCtp: true })}
             prefix="$"
             suffix="/yr"
-            tooltip="ACT Compulsory Third Party (MAI) insurance"
+            tooltip="ACT MAI (CTP) insurance: the same price for every private car with a given insurer. Default is the cheapest current premium."
           />
+          {car.useCustomCtp && (
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => update({ useCustomCtp: false })}
+                className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
+              >
+                Reset to ACT premium
+              </button>
+            </div>
+          )}
           <NumberInput
             label="Registration"
-            value={car.regoPerYear}
-            onChange={v => update({ regoPerYear: v })}
+            value={car.useCustomRego ? car.regoPerYear : autoRego}
+            onChange={v => update({ regoPerYear: v, useCustomRego: true })}
             prefix="$"
             suffix="/yr"
+            tooltip={`ACT private rego for category ${emissionsCategory}${car.tareKg && car.tareKg >= 2505 ? ', 2,505 kg+ tare' : ''}, plus the road rescue fee. Edit to override.`}
           />
+          {car.useCustomRego && (
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => update({ useCustomRego: false })}
+                className="min-h-8 md:min-h-0 text-xs text-blue-500 hover:text-blue-700"
+              >
+                Reset to ACT fee
+              </button>
+            </div>
+          )}
           {car.fuelType === 'ev' && (
             <NumberInput
               label="Free Rego Years"
@@ -374,7 +423,15 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
         {/* Depreciation */}
         <Section title="Depreciation" defaultOpen={isDesktop}>
           <SliderInput
-            label="Annual Rate"
+            label="First Year"
+            value={car.firstYearDepreciationPercent}
+            onChange={v => update({ firstYearDepreciationPercent: v })}
+            min={0}
+            max={50}
+            suffix="%"
+          />
+          <SliderInput
+            label="Each Year After"
             value={car.annualDepreciationPercent}
             onChange={v => update({ annualDepreciationPercent: v })}
             min={0}

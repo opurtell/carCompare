@@ -12,10 +12,11 @@ export function getIntroSteps(isDesktop: boolean): IntroStep[] {
       title: 'See what a car really costs',
       points: [
         'Compare up to 5 cars over 1 to 10 years, including purchase, stamp duty, fuel, servicing, insurance, rego, CTP and loan interest.',
+        'Pick a car fills in a popular model for you: price, fuel use, CO₂, weight and servicing, with links to where each figure came from.',
+        'Not in the list? When the AI service is available, Pick a car can look it up on the web. Check what it finds, especially insurance.',
         isDesktop
-          ? 'Click Add Car, then edit the figures on its card. New cars start with typical values, so swap in your real ones.'
-          : 'On the Cars tab, tap Add Car, then open each section to edit it. New cars start with typical values, so swap in your real ones.',
-        'If you see ✨ AI Add, it can look a car up for you. It only appears when the AI service is available, so it may be missing. Check what it finds.',
+          ? 'Or click Add Car for a card with typical values, then type in your own figures.'
+          : 'Or tap Add Car on the Cars tab for a card with typical values, then open each section to type in your own figures.',
         'Results are ACT-focused estimates, not quotes.',
       ],
     },
@@ -34,7 +35,7 @@ export function getIntroSteps(isDesktop: boolean): IntroStep[] {
       points: [
         `Petrol price, electricity price and annual km are set once in ${globalDefaults} and apply to every car.`,
         'Change one of those on a single car and only that car changes. Reset to global links it back up.',
-        'Stamp duty is an estimate from the ACT emissions-based rules. Type your own figure to override it, or use Reset to auto. Duty from AI Add counts as your own figure.',
+        'Stamp duty, rego and CTP are worked out from the current ACT rules, using the car’s CO₂ and weight. Type your own figure to override one, and use Reset to go back to the calculated value.',
       ],
     },
     {
@@ -43,7 +44,7 @@ export function getIntroSteps(isDesktop: boolean): IntroStep[] {
         isDesktop
           ? 'Results sit below the cars. Compare over, in the header, sets the number of years.'
           : 'Results are on the Compare tab. Compare over, at the top, sets the number of years.',
-        'Depreciation on shows net cost: stamp duty, running costs and the value the car loses, as if you sold it at the end.',
+        'Depreciation on shows net cost: stamp duty, running costs and the value the car loses, as if you sold it at the end. Cars lose most in the first year, so each car has a first-year rate and a rate for each year after.',
         'Depreciation off shows cash spent: purchase price, stamp duty and running costs, with no credit for resale value.',
         'The switch changes every total, chart and ranking, so the cheapest car can change too.',
       ],
