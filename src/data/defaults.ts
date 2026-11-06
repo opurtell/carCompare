@@ -5,7 +5,7 @@ export const ACT_DEFAULTS = {
   ctpPerYear: 600,
   // ACT's 2-year free rego for new ZEVs closed 30 June 2024.
   evFreeRegoYears: 0,
-  petrolPrice: 2.0,
+  petrolPrice: 2.45,
   electricityPrice: 0.30,
   solarRate: 0.06,
   annualKm: 15000,
