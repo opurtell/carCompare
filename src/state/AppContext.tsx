@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, type ReactNode } from 'react';
 import type { AppState, AppAction, CarConfig, GlobalDefaults } from '../types/car';
 import { appReducer } from './appReducer';
 import { loadState, useLocalStorageSync } from '../hooks/useLocalStorage';
@@ -17,6 +17,7 @@ interface AppContextValue {
   updateLibraryEntry: (libraryId: string, config: CarConfig) => void;
   removeFromLibrary: (libraryId: string) => void;
   toggleDepreciation: () => void;
+  resetAll: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -37,11 +38,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useLocalStorageSync(state);
 
-  // Reset car counter on load
-  useEffect(() => {
-    // no-op, just ensures context mounts
-  }, []);
-
   const addCar = (car: CarConfig) => dispatch({ type: 'ADD_CAR', car });
   const removeCar = (carId: string) => dispatch({ type: 'REMOVE_CAR', carId });
   const updateCar = (car: CarConfig) => dispatch({ type: 'UPDATE_CAR', car });
@@ -58,19 +54,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeFromLibrary = (libraryId: string) =>
     dispatch({ type: 'REMOVE_FROM_LIBRARY', libraryId });
   const toggleDepreciation = () => dispatch({ type: 'TOGGLE_DEPRECIATION' });
+  const resetAll = () => dispatch({ type: 'LOAD_STATE', state: defaultState });
 
   return (
     <AppContext.Provider value={{
       state, dispatch,
       addCar, removeCar, updateCar, setYears, setGlobalDefaults,
       saveToLibrary, addFromLibrary, updateLibraryEntry, removeFromLibrary,
-      toggleDepreciation,
+      toggleDepreciation, resetAll,
     }}>
       {children}
     </AppContext.Provider>
   );
 }
 
+// Hook lives beside its provider by design.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp(): AppContextValue {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within AppProvider');

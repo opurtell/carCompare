@@ -1,4 +1,6 @@
-export type FuelType = 'ev' | 'phev' | 'hybrid' | 'petrol';
+import type { FuelType } from '../../shared/research';
+
+export type { FuelType };
 
 export type DepreciationModel = 'percentage' | 'resale';
 

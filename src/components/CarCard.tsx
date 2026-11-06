@@ -8,7 +8,7 @@ import { Section } from './ui/Section';
 import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
 import { calculateCarResult } from '../calculations/costEngine';
-import { calculateActStampDuty } from '../calculations/actSpecific';
+import { autoStampDutyFor, estimateActEmissionsCategory } from '../calculations/actSpecific';
 import { createDefaultCarConfig } from '../data/defaults';
 import { resolveCarConfig } from '../utils/resolveCarConfig';
 import { useApp } from '../state/AppContext';
@@ -31,7 +31,8 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
   const isLinked = Boolean(car.libraryId);
   const isDirty = isCarDirtyFromLibrary(car, state.library);
   const color = getCarColor(index);
-  const autoStampDuty = calculateActStampDuty(car.fuelType, car.purchasePrice);
+  const autoStampDuty = autoStampDutyFor(car);
+  const emissionsCategory = estimateActEmissionsCategory(car.fuelType, car.petrolConsumption);
   const resolvedCar = resolveCarConfig(car, globalDefaults);
   const result = calculateCarResult(resolvedCar, comparisonYears);
 
@@ -153,7 +154,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
             value={car.useCustomStampDuty ? car.stampDuty : autoStampDuty}
             onChange={v => update({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
-            tooltip={car.fuelType === 'ev' ? 'EVs are exempt from stamp duty in ACT' : 'Auto-calculated from purchase price. Edit to override.'}
+            tooltip={`Auto-calculated using ACT emissions-based duty (estimated category ${emissionsCategory}). Edit to override.`}
           />
           {car.useCustomStampDuty && (
             <div className="flex justify-end -mt-1">
@@ -168,7 +169,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
           <ToggleSwitch
             label="Car Loan"
             checked={car.hasLoan}
-            onChange={v => update({ hasLoan: v })}
+            onChange={v => update({ hasLoan: v, ...(v && car.loanAmount <= 0 ? { loanAmount: car.purchasePrice } : {}) })}
           />
           {car.hasLoan && (
             <>
@@ -194,6 +195,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
                 suffix="yrs"
                 min={1}
                 max={10}
+                integer
               />
             </>
           )}
@@ -340,7 +342,7 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
             onChange={v => update({ ctpPerYear: v })}
             prefix="$"
             suffix="/yr"
-            tooltip="ACT Compulsory Third Party insurance (~$600/yr)"
+            tooltip="ACT Compulsory Third Party (MAI) insurance"
           />
           <NumberInput
             label="Registration"
@@ -357,7 +359,8 @@ export function CarCard({ car, index, comparisonYears, globalDefaults, onUpdate,
               suffix="yrs"
               min={0}
               max={5}
-              tooltip="ACT offers 2 years free registration for new EVs"
+              integer
+              tooltip="Years of free registration, if any. The ACT's 2-year ZEV free rego scheme closed 30 June 2024."
             />
           )}
         </Section>
