@@ -1,14 +1,16 @@
-import { useEffect, useId, type ReactNode } from 'react';
+import { useEffect, useId, type ReactNode, type Ref } from 'react';
 
 interface ModalProps {
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** The scrolling body, for dialogs that move between views. */
+  bodyRef?: Ref<HTMLDivElement>;
 }
 
 /** Bottom sheet on phones, centred dialog from `md` up. Closes on Escape or backdrop click. */
-export function Modal({ title, onClose, children, footer }: ModalProps) {
+export function Modal({ title, onClose, children, footer, bodyRef }: ModalProps) {
   const titleId = useId();
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function Modal({ title, onClose, children, footer }: ModalProps) {
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+        <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
 
         {footer}
       </div>
