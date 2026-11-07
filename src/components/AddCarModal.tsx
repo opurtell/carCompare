@@ -275,6 +275,22 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             <>
               <p className="text-xs text-gray-500 mb-3">✨ Look it up: AI searches the web for its price, fuel use and running costs.</p>
               <div className="space-y-3">
+                <div role="radiogroup" aria-label="New or used" className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+                  {(['new', 'used'] as const).map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.condition === c}
+                      onClick={() => setFormData({ ...formData, condition: c })}
+                      className={`min-h-10 md:min-h-0 py-1.5 text-sm rounded-md transition-colors ${
+                        formData.condition === c ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-600'
+                      }`}
+                    >
+                      {c === 'new' ? 'New' : 'Used'}
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1" htmlFor="ai-make">Make <span className="text-red-500">*</span></label>
