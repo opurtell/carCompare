@@ -256,14 +256,14 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
                     <span className="block text-sm font-medium text-gray-800 truncate">{v.year ? `${v.year} ` : ''}{v.make} {v.model}</span>
                     <span className="block text-xs text-gray-500 truncate">{v.variant} · {v.fuelType.toUpperCase()}</span>
                   </span>
-                  <span className="text-sm text-gray-700 shrink-0">{formatCurrency(v.purchasePrice)}</span>
+                  <span className="text-sm text-gray-700 shrink-0">{v.priceIsEstimate ? '~' : ''}{formatCurrency(v.purchasePrice)}</span>
                 </button>
               </li>
             ))}
           </ul>
           <p className="mt-1 text-xs text-gray-400">
             {used
-              ? `Typical used prices (middle of the CarsGuide guide range), checked ${USED_CATALOGUE_AS_OF}. Yours will vary with km and condition.`
+              ? `Typical used prices, ${USED_CATALOGUE_AS_OF}: the middle of the CarsGuide guide range, or a rough estimate where marked ~. Yours will vary with km and condition.`
               : `List prices before on-road costs, checked ${CATALOGUE_AS_OF}.`}{' '}
             Duty, rego and CTP are added from ACT rules.
           </p>

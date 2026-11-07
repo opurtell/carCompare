@@ -95,18 +95,24 @@ describe('used-car catalogue', async () => {
   const { searchCatalogue } = await import('../src/utils/searchCatalogue');
 
   it('has sane used entries with unique ids and a price inside the guide range', () => {
-    expect(USED_CATALOGUE.length).toBeGreaterThanOrEqual(20);
+    expect(USED_CATALOGUE.length).toBeGreaterThanOrEqual(80);
     const ids = [...USED_CATALOGUE, ...VEHICLE_CATALOGUE].map(v => v.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const v of USED_CATALOGUE) {
       expect(v.isUsed).toBe(true);
-      expect(v.year).toBeGreaterThanOrEqual(2015);
-      const [lo, hi] = v.priceRange!;
-      expect(v.purchasePrice).toBeGreaterThanOrEqual(lo);
-      expect(v.purchasePrice).toBeLessThanOrEqual(hi);
+      expect(v.year).toBeGreaterThanOrEqual(2014);
+      expect(v.purchasePrice).toBeGreaterThan(3_000);
+      expect(v.purchasePrice).toBeLessThan(100_000);
+      // Either a guide range with its source, or flagged as an estimate.
+      expect(Boolean(v.priceRange) !== Boolean(v.priceIsEstimate)).toBe(true);
+      if (v.priceRange) {
+        const [lo, hi] = v.priceRange;
+        expect(v.purchasePrice).toBeGreaterThanOrEqual(lo);
+        expect(v.purchasePrice).toBeLessThanOrEqual(hi);
+        expect(v.sources.price).toMatch(/^https:\/\/www\.carsguide\.com\.au\//);
+      }
       if (v.fuelType === 'ev') expect(v.electricConsumption).toBeGreaterThan(0);
       else expect(v.petrolConsumption).toBeGreaterThan(0);
-      expect(v.sources.price).toMatch(/^https:\/\/www\.carsguide\.com\.au\//);
     }
   });
 

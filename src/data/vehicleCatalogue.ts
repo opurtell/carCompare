@@ -24,6 +24,8 @@ export interface CatalogueVehicle {
   year?: number;
   isUsed?: boolean;
   priceRange?: [number, number];
+  /** Used cars only: a rough typical price with no guide source. */
+  priceIsEstimate?: boolean;
   sources: { price?: string; specs?: string; servicing?: string };
 }
 
