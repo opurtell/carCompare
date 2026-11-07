@@ -4,7 +4,8 @@ import { researchVehicle, ResearchApiError, type ResearchResult } from '../api/c
 import { safeHttpUrl } from '../../shared/research';
 import { mergeResearchResultToConfig } from '../utils/carConfigMerger';
 import { ACT_CTP_PREMIUM, autoRegoFor, autoStampDutyFor, emissionsCategoryFor } from '../calculations/actSpecific';
-import { CATALOGUE_AS_OF, type CatalogueVehicle } from '../data/vehicleCatalogue';
+import { CATALOGUE_AS_OF, VEHICLE_CATALOGUE, type CatalogueVehicle } from '../data/vehicleCatalogue';
+import { USED_CATALOGUE, USED_CATALOGUE_AS_OF } from '../data/usedCatalogue';
 import { searchCatalogue } from '../utils/searchCatalogue';
 import { depreciationDefaultsFor } from '../data/defaults';
 import type { CarConfig, FuelType } from '../types/car';
@@ -142,7 +143,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
   function handlePickCatalogue(vehicle: CatalogueVehicle) {
     const config = mergeResearchResultToConfig(
       {
-        name: `${vehicle.make} ${vehicle.model} ${vehicle.variant}`.trim(),
+        name: `${vehicle.year ? `${vehicle.year} ` : ''}${vehicle.make} ${vehicle.model} ${vehicle.variant}`.trim(),
         fuelType: vehicle.fuelType,
         purchasePrice: vehicle.purchasePrice,
         petrolConsumption: vehicle.petrolConsumption,
@@ -151,6 +152,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
         tareKg: vehicle.tareKg ?? 0,
         servicingCostPerYear: vehicle.servicingCostPerYear ?? 0,
         insurancePerYear: 0,
+        isUsed: vehicle.isUsed ?? false,
       },
       state.globalDefaults,
     );
@@ -203,14 +205,31 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
   }
 
   function renderInputStage() {
-    const matches = searchCatalogue(query);
+    const used = formData.condition === 'used';
+    const matches = searchCatalogue(query, used ? USED_CATALOGUE : VEHICLE_CATALOGUE);
     const inputClass =
       'w-full px-3 py-2 text-base md:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400';
     return (
       <>
+        <div role="radiogroup" aria-label="New or used" className="mb-4 grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+          {(['new', 'used'] as const).map(c => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={formData.condition === c}
+              onClick={() => setFormData({ ...formData, condition: c })}
+              className={`min-h-10 md:min-h-0 py-1.5 text-sm rounded-md transition-colors ${
+                formData.condition === c ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-600'
+              }`}
+            >
+              {c === 'new' ? 'New car' : 'Used car'}
+            </button>
+          ))}
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="catalogue-search">
-            Popular cars
+            {used ? 'Popular used cars' : 'Popular cars'}
           </label>
           <input
             id="catalogue-search"
@@ -234,7 +253,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
                              hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-gray-800 truncate">{v.make} {v.model}</span>
+                    <span className="block text-sm font-medium text-gray-800 truncate">{v.year ? `${v.year} ` : ''}{v.make} {v.model}</span>
                     <span className="block text-xs text-gray-500 truncate">{v.variant} · {v.fuelType.toUpperCase()}</span>
                   </span>
                   <span className="text-sm text-gray-700 shrink-0">{formatCurrency(v.purchasePrice)}</span>
@@ -243,7 +262,10 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             ))}
           </ul>
           <p className="mt-1 text-xs text-gray-400">
-            List prices before on-road costs, checked {CATALOGUE_AS_OF}. Duty, rego and CTP are added from ACT rules.
+            {used
+              ? `Typical used prices (middle of the CarsGuide guide range), checked ${USED_CATALOGUE_AS_OF}. Yours will vary with km and condition.`
+              : `List prices before on-road costs, checked ${CATALOGUE_AS_OF}.`}{' '}
+            Duty, rego and CTP are added from ACT rules.
           </p>
         </div>
 
@@ -253,22 +275,6 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             <>
               <p className="text-xs text-gray-500 mb-3">✨ Look it up: AI searches the web for its price, fuel use and running costs.</p>
               <div className="space-y-3">
-                <div role="radiogroup" aria-label="New or used" className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
-                  {(['new', 'used'] as const).map(c => (
-                    <button
-                      key={c}
-                      type="button"
-                      role="radio"
-                      aria-checked={formData.condition === c}
-                      onClick={() => setFormData({ ...formData, condition: c })}
-                      className={`min-h-10 md:min-h-0 py-1.5 text-sm rounded-md transition-colors ${
-                        formData.condition === c ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-600'
-                      }`}
-                    >
-                      {c === 'new' ? 'New' : 'Used'}
-                    </button>
-                  ))}
-                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1" htmlFor="ai-make">Make <span className="text-red-500">*</span></label>
@@ -393,7 +399,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
                   {carConfig.fuelType.toUpperCase()}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {origin === 'catalogue' ? `Catalogue, ${CATALOGUE_AS_OF}` : 'AI lookup: check the figures'}
+                  {origin === 'catalogue' ? `Catalogue, ${carConfig.isUsed ? USED_CATALOGUE_AS_OF : CATALOGUE_AS_OF}` : 'AI lookup: check the figures'}
                 </span>
               </div>
             </div>

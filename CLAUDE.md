@@ -9,6 +9,7 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `src/types/car.ts` — core types (`CarConfig`, `YearlyCostBreakdown`, `CarCalculationResult`)
 - `src/data/defaults.ts` — default car config factory (`createDefaultCarConfig`), fuel-type depreciation defaults
 - `src/data/vehicleCatalogue.ts` — built-in catalogue of popular AU cars (Pick a car), with sources and `CATALOGUE_AS_OF`; refresh quarterly
+- `src/data/usedCatalogue.ts` — popular used cars (year, CarsGuide/Glass's guide range; price = midpoint), shown when Pick a car is on "Used car"; refresh with the new-car catalogue
 - `src/api/carResearchApi.ts` — browser client for the app's own `/api/research` endpoint
 - `shared/research.ts` — shared by app + Worker: research types, AU states, prompt, input validation, response sanitiser, `safeHttpUrl`
 - `worker/index.ts` — Cloudflare Worker: `/api/research`, `/api/health`; everything else served from static assets
