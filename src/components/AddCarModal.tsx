@@ -271,7 +271,7 @@ export function AddCarModal({ onClose, aiAvailable, startAt = 'input' }: AddCarM
         />
         <p className="mt-2 text-xs text-gray-400">
           {used
-            ? `Typical used prices, ${USED_CATALOGUE_AS_OF}: CarsGuide guide midpoint, or a rough estimate where marked ~.`
+            ? `Typical used prices, ${USED_CATALOGUE_AS_OF}: middle of the CarsGuide guide range.`
             : `List prices before on-road costs, ${CATALOGUE_AS_OF}.`}{' '}
           Duty, rego and CTP follow ACT rules.
         </p>
