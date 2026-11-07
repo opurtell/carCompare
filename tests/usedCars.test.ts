@@ -122,3 +122,32 @@ describe('used-car catalogue', async () => {
     expect(hits.every(v => v.year === 2019 && v.make === 'Mazda')).toBe(true);
   });
 });
+
+describe('Pick a car grouping', async () => {
+  const { USED_CATALOGUE } = await import('../src/data/usedCatalogue');
+  const { VEHICLE_CATALOGUE } = await import('../src/data/vehicleCatalogue');
+  const { groupByModel, searchCatalogue } = await import('../src/utils/searchCatalogue');
+
+  it('lists each used model once, newest year first', () => {
+    const groups = groupByModel(USED_CATALOGUE);
+    expect(groups.length).toBeLessThan(USED_CATALOGUE.length);
+    expect(groups.reduce((n, g) => n + g.entries.length, 0)).toBe(USED_CATALOGUE.length);
+    expect(new Set(groups.map(g => g.key)).size).toBe(groups.length);
+    const corolla = groups.find(g => g.make === 'Toyota' && g.model === 'Corolla')!;
+    expect(corolla.entries.length).toBeGreaterThan(1);
+    const years = corolla.entries.map(v => v.year ?? 0);
+    expect(years).toEqual([...years].sort((a, b) => b - a));
+  });
+
+  it('sorts models A–Z by make, then model', () => {
+    const groups = groupByModel(VEHICLE_CATALOGUE);
+    const names = groups.map(g => `${g.make} ${g.model}`);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' })));
+    expect(groups.find(g => g.model === 'Model Y')?.entries.length).toBe(2);
+  });
+
+  it('narrows a model to the searched year', () => {
+    const [corolla] = groupByModel(searchCatalogue('corolla 2019', USED_CATALOGUE)).filter(g => g.model === 'Corolla');
+    expect(corolla.entries.every(v => v.year === 2019)).toBe(true);
+  });
+});

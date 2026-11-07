@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { researchVehicle, ResearchApiError, type ResearchResult } from '../api/carResearchApi';
 import { safeHttpUrl } from '../../shared/research';
@@ -6,8 +6,9 @@ import { mergeResearchResultToConfig } from '../utils/carConfigMerger';
 import { ACT_CTP_PREMIUM, autoRegoFor, autoStampDutyFor, emissionsCategoryFor } from '../calculations/actSpecific';
 import { CATALOGUE_AS_OF, VEHICLE_CATALOGUE, type CatalogueVehicle } from '../data/vehicleCatalogue';
 import { USED_CATALOGUE, USED_CATALOGUE_AS_OF } from '../data/usedCatalogue';
-import { searchCatalogue } from '../utils/searchCatalogue';
-import { depreciationDefaultsFor } from '../data/defaults';
+import { CataloguePicker } from './CataloguePicker';
+import { INITIAL_PICKER_STATE, type PickerState } from '../utils/searchCatalogue';
+import { createDefaultCarConfig, depreciationDefaultsFor } from '../data/defaults';
 import type { CarConfig, FuelType } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { NumberInput } from './ui/NumberInput';
@@ -28,7 +29,7 @@ interface SourceLink {
   value: string;
 }
 
-type Origin = 'catalogue' | 'ai';
+type Origin = 'catalogue' | 'ai' | 'blank';
 
 const SOURCE_LABELS: Record<string, string> = {
   price: 'Price',
@@ -60,7 +61,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
     condition: 'new',
     odometerKm: '',
   });
-  const [query, setQuery] = useState('');
+  const [picker, setPicker] = useState<PickerState>(INITIAL_PICKER_STATE);
   const [origin, setOrigin] = useState<Origin>('catalogue');
   const [sourceLinks, setSourceLinks] = useState<SourceLink[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -73,6 +74,21 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
   const atCap = state.cars.length >= 5;
+
+  // Each view opens at the top, except going back, which returns to where you were.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const scrollByView = useRef(new Map<string, number>());
+  const view = stage === 'input' ? `input|${formData.condition}|${picker.modelKey ?? ''}` : stage;
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const remember = () => scrollByView.current.set(view, body.scrollTop);
+    body.addEventListener('scroll', remember, { passive: true });
+    return () => body.removeEventListener('scroll', remember);
+  }, [view]);
+  useLayoutEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = scrollByView.current.get(view) ?? 0;
+  }, [view]);
 
   async function handleResearch() {
     if (!formData.make || !formData.model || !formData.year) {
@@ -204,21 +220,36 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
     }
   }
 
+  function handleStartBlank() {
+    const fuelType = picker.fuel === 'all' ? 'petrol' : picker.fuel;
+    const isUsed = formData.condition === 'used';
+    const config = createDefaultCarConfig(fuelType, state.cars.map(c => c.name));
+    setCarConfig({ ...config, isUsed, ...depreciationDefaultsFor(fuelType, isUsed) });
+    setOrigin('blank');
+    setSourceLinks([]);
+    setStage('expanded');
+  }
+
+  function setCondition(condition: 'new' | 'used') {
+    if (condition === formData.condition) return;
+    setFormData({ ...formData, condition });
+    setPicker({ ...picker, modelKey: null });
+  }
+
   function renderInputStage() {
     const used = formData.condition === 'used';
-    const matches = searchCatalogue(query, used ? USED_CATALOGUE : VEHICLE_CATALOGUE);
     const inputClass =
       'w-full px-3 py-2 text-base md:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400';
     return (
-      <>
-        <div role="radiogroup" aria-label="New or used" className="mb-4 grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+      <div className="min-h-[62dvh] md:min-h-[26rem]">
+        <div role="radiogroup" aria-label="New or used" className="mb-2 grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
           {(['new', 'used'] as const).map(c => (
             <button
               key={c}
               type="button"
               role="radio"
               aria-checked={formData.condition === c}
-              onClick={() => setFormData({ ...formData, condition: c })}
+              onClick={() => setCondition(c)}
               className={`min-h-10 md:min-h-0 py-1.5 text-sm rounded-md transition-colors ${
                 formData.condition === c ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-600'
               }`}
@@ -227,47 +258,21 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             </button>
           ))}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="catalogue-search">
-            {used ? 'Popular used cars' : 'Popular cars'}
-          </label>
-          <input
-            id="catalogue-search"
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search, e.g. RAV4, EV, Kia"
-            className={inputClass}
-          />
-          <ul className="mt-2 max-h-64 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
-            {matches.length === 0 && (
-              <li className="px-3 py-3 text-sm text-gray-400">No match in the list.</li>
-            )}
-            {matches.map(v => (
-              <li key={v.id}>
-                <button
-                  type="button"
-                  onClick={() => handlePickCatalogue(v)}
-                  disabled={atCap}
-                  className="w-full min-h-11 md:min-h-0 px-3 py-2 flex items-center justify-between gap-3 text-left
-                             hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-gray-800 truncate">{v.year ? `${v.year} ` : ''}{v.make} {v.model}</span>
-                    <span className="block text-xs text-gray-500 truncate">{v.variant} · {v.fuelType.toUpperCase()}</span>
-                  </span>
-                  <span className="text-sm text-gray-700 shrink-0">{v.priceIsEstimate ? '~' : ''}{formatCurrency(v.purchasePrice)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1 text-xs text-gray-400">
-            {used
-              ? `Typical used prices, ${USED_CATALOGUE_AS_OF}: the middle of the CarsGuide guide range, or a rough estimate where marked ~. Yours will vary with km and condition.`
-              : `List prices before on-road costs, checked ${CATALOGUE_AS_OF}.`}{' '}
-            Duty, rego and CTP are added from ACT rules.
-          </p>
-        </div>
+        <CataloguePicker
+          key={formData.condition}
+          catalogue={used ? USED_CATALOGUE : VEHICLE_CATALOGUE}
+          used={used}
+          state={picker}
+          onStateChange={setPicker}
+          onPick={handlePickCatalogue}
+          disabled={atCap}
+        />
+        <p className="mt-2 text-xs text-gray-400">
+          {used
+            ? `Typical used prices, ${USED_CATALOGUE_AS_OF}: CarsGuide guide midpoint, or a rough estimate where marked ~.`
+            : `List prices before on-road costs, ${CATALOGUE_AS_OF}.`}{' '}
+          Duty, rego and CTP follow ACT rules.
+        </p>
 
         <div className="mt-5 pt-4 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-700">Not in the list?</h3>
@@ -343,15 +348,21 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
               </button>
             </>
           ) : (
-            <p className="text-xs text-gray-500 mt-1">
-              Close this and use Add Car for a card with typical values, then type in your car&rsquo;s figures.
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Start from typical values and type in your car&rsquo;s figures.</p>
           )}
+          <button
+            type="button"
+            onClick={handleStartBlank}
+            disabled={atCap}
+            className="mt-3 w-full min-h-11 md:min-h-0 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Enter details yourself
+          </button>
         </div>
         {atCap && (
           <p className="mt-3 text-xs text-gray-500 text-center">Remove a car from the comparison to add another.</p>
         )}
-      </>
+      </div>
     );
   }
 
@@ -501,34 +512,6 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={() => setStage('input')}
-            className="min-h-11 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleEditDetails}
-            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Edit details
-          </button>
-          <button
-            onClick={handleAddToComparison}
-            disabled={atCap}
-            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            title={atCap ? 'Comparison is full (5 cars max)' : undefined}
-          >
-            Add to Comparison
-          </button>
-        </div>
-        {atCap && (
-          <div className="text-xs text-gray-500 text-center">
-            Remove a car from the comparison to add another.
-          </div>
-        )}
       </div>
     );
   }
@@ -778,27 +761,41 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
           />
         </Section>
 
-        {/* Actions */}
-        <div className="sticky -bottom-4 -mx-5 -mb-4 px-5 py-3 flex gap-3 mt-4 bg-white border-t border-gray-200">
+      </div>
+    );
+  }
+
+  /** Summary and edit actions sit in the sheet's footer so Add is always in reach. */
+  function renderFooter() {
+    if (stage !== 'summary' && stage !== 'expanded') return undefined;
+    const back = stage === 'expanded' && origin !== 'blank' ? 'summary' : 'input';
+    return (
+      <div className="px-5 py-3 border-t border-gray-200">
+        <div className="flex gap-2 md:gap-3">
           <button
-            onClick={() => setStage('summary')}
-            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            onClick={() => setStage(back)}
+            className="min-h-11 px-3 md:px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
-            Back to Summary
+            Back
           </button>
+          {stage === 'summary' && (
+            <button
+              onClick={handleEditDetails}
+              className="min-h-11 px-3 md:px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Edit details
+            </button>
+          )}
           <button
             onClick={handleAddToComparison}
             disabled={atCap}
-            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            title={atCap ? 'Comparison is full (5 cars max)' : undefined}
+            className="flex-1 min-h-11 px-3 md:px-4 py-2 text-sm md:text-base font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
-            Add to Comparison
+            Add to comparison
           </button>
         </div>
         {atCap && (
-          <div className="text-xs text-gray-500 text-center pt-5">
-            Remove a car from the comparison to add another.
-          </div>
+          <p className="mt-2 text-xs text-gray-500 text-center">Comparison is full (5 cars). Remove one to add another.</p>
         )}
       </div>
     );
@@ -807,6 +804,8 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
   return (
     <Modal
       onClose={onClose}
+      bodyRef={bodyRef}
+      footer={renderFooter()}
       title={
         <>
           <span>Pick a car</span>
