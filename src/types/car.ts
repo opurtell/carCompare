@@ -31,6 +31,8 @@ export interface CarConfig {
   co2GPerKm?: number;
   /** Tare mass. Unknown → treated as under the 2,505 kg rego step. */
   tareKg?: number;
+  /** Second-hand purchase: ACT used-vehicle duty rates, and no new-car first-year drop. */
+  isUsed?: boolean;
   depreciationModel: DepreciationModel;
   /** Value lost in year 1 (new cars drop fastest in the first year). */
   firstYearDepreciationPercent: number;

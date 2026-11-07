@@ -23,6 +23,10 @@ export interface ResearchParams {
   year: number;
   trim?: string;
   state: AUStateCode;
+  /** Used cars get a current second-hand price estimate instead of the new list price. */
+  condition?: 'new' | 'used';
+  /** Used only: odometer reading, which moves the price estimate. */
+  odometerKm?: number;
 }
 
 export interface ResearchSources {
@@ -58,6 +62,8 @@ export interface ResearchResult {
   insurancePerYear: number;
   sources: ResearchSources;
   citations: ResearchCitation[];
+  /** True when purchasePrice is a second-hand price estimate. */
+  isUsed: boolean;
 }
 
 /** Error codes returned by /api/research so the UI can show a helpful message. */
@@ -106,27 +112,38 @@ export function validateResearchParams(
   }
   if (!AU_STATES.some(s => s.code === state)) return { ok: false, error: 'Unknown state.' };
 
+  const condition = b.condition === 'used' ? 'used' : 'new';
+  let odometerKm: number | undefined;
+  if (condition === 'used' && b.odometerKm !== undefined && b.odometerKm !== null && b.odometerKm !== '') {
+    const km = typeof b.odometerKm === 'number' ? Math.round(b.odometerKm) : Number.NaN;
+    if (!Number.isFinite(km) || km < 0 || km > 1_000_000) return { ok: false, error: 'Odometer must be 0 to 1,000,000 km.' };
+    odometerKm = km;
+  }
+
   return {
     ok: true,
-    params: { make, model, year, trim: trim || undefined, state: state as AUStateCode },
+    params: {
+      make, model, year, trim: trim || undefined, state: state as AUStateCode,
+      ...(condition === 'used' ? { condition, odometerKm } : {}),
+    },
   };
 }
 
-const PROMPT_TEMPLATE = `Search the web and find facts about this new car as sold in Australia, for a cost-of-ownership calculator.
+const PROMPT_TEMPLATE = `Search the web and find facts about this {{condition}} car as sold in Australia, for a cost-of-ownership calculator.
 
-Car: {{year}} {{make}} {{model}}{{trim}}
+Car: {{year}} {{make}} {{model}}{{trim}}{{odometer}}
 Buyer's state: {{state}}
 
 Return these facts. Use the official Australian figures where they exist (manufacturer AU site, Green Vehicle Guide, CarExpert, Drive, CarsGuide):
 
 - name: full name, e.g. "Toyota RAV4 GXL Hybrid"
 - fuelType: one of "ev", "phev", "hybrid", "petrol"
-- purchasePrice: AUD list price including GST but BEFORE on-road costs (no stamp duty, registration or CTP). If you only find a drive-away price, use it and say so in sources.purchasePrice.
+- purchasePrice: {{priceRule}}
 - petrolConsumption: official combined L/100km (0 for an EV)
 - electricConsumption: kWh/100km (0 unless EV or PHEV)
 - co2GPerKm: official combined CO2 g/km (0 for an EV; 0 if not found)
 - tareKg: tare mass in kg (kerb mass if tare isn't published; 0 if not found)
-- servicingCostPerYear: average yearly cost of the brand's capped-price servicing over the first 5 years
+- servicingCostPerYear: {{servicingRule}}
 - insurancePerYear: typical comprehensive insurance for a private owner in {{state}} (an estimate)
 - sources: for each group, the URL of the page the figure came from, or "estimate"
 
@@ -152,9 +169,24 @@ Reply with ONLY this JSON object, no markdown fences or other text:
 
 Never invent a URL. If you can't find a figure, give your best estimate and write "estimate" as its source.`;
 
+const NEW_PRICE_RULE =
+  'AUD list price including GST but BEFORE on-road costs (no stamp duty, registration or CTP). If you only find a drive-away price, use it and say so in sources.purchasePrice.';
+const USED_PRICE_RULE =
+  "today's typical Australian second-hand price in AUD for this year and variant{{kmNote}}: the middle of current dealer and private-sale listings (carsales, Drive, Gumtree) or a RedBook guide price. Not the original new price. Name where it came from in sources.purchasePrice.";
+const NEW_SERVICING_RULE = "average yearly cost of the brand's capped-price servicing over the first 5 years";
+const USED_SERVICING_RULE =
+  'typical yearly servicing cost for a car of this age (capped-price servicing if it still applies, otherwise a typical independent-service estimate)';
+
 export function buildResearchPrompt(params: ResearchParams): string {
   const trim = params.trim ? `, ${params.trim}` : '';
+  const used = params.condition === 'used';
+  const km = used && params.odometerKm !== undefined ? params.odometerKm.toLocaleString('en-AU') : '';
   return PROMPT_TEMPLATE
+    .replace(/\{\{condition\}\}/g, used ? 'used (second-hand)' : 'new')
+    .replace(/\{\{odometer\}\}/g, km ? `, about ${km} km on the odometer` : '')
+    .replace(/\{\{priceRule\}\}/g, used ? USED_PRICE_RULE : NEW_PRICE_RULE)
+    .replace(/\{\{kmNote\}\}/g, km ? ` with about ${km} km` : '')
+    .replace(/\{\{servicingRule\}\}/g, used ? USED_SERVICING_RULE : NEW_SERVICING_RULE)
     .replace(/\{\{make\}\}/g, params.make)
     .replace(/\{\{model\}\}/g, params.model)
     .replace(/\{\{year\}\}/g, String(params.year))
@@ -164,11 +196,13 @@ export function buildResearchPrompt(params: ResearchParams): string {
 
 /** Same car, same answer: normalised so "toyota rav4" and "Toyota RAV4 " share an entry. */
 /** Bump when the result shape or prompt changes, so old cached answers are ignored. */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 
 export function researchCacheKey(params: ResearchParams): string {
   const norm = (v: string | undefined) => (v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const parts = [params.state, params.year, norm(params.make), norm(params.model), norm(params.trim)];
+  // Used prices are cached per 10,000 km band, so nearby odometer readings share a lookup.
+  const km = params.condition === 'used' ? `used-${Math.round((params.odometerKm ?? -1) / 10_000)}` : 'new';
+  const parts = [params.state, params.year, norm(params.make), norm(params.model), norm(params.trim), km];
   return `https://research-cache.internal/${CACHE_VERSION}/${parts.map(p => encodeURIComponent(String(p))).join('/')}`;
 }
 
@@ -272,6 +306,7 @@ export function sanitizeResearchResult(raw: unknown, params: ResearchParams, cit
       insurance: str(s.insurance, 500),
     },
     citations: sanitizeCitations(citations),
+    isUsed: params.condition === 'used',
   };
 }
 

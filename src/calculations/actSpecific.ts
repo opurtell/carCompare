@@ -99,9 +99,14 @@ export function calculateActStampDuty(
   petrolConsumption = 0,
   asAt: Date = new Date(),
   co2GPerKm?: number,
+  isUsed = false,
 ): number {
   const price = Math.max(0, purchasePrice);
-  const category = estimateActEmissionsCategory(fuelType, petrolConsumption, co2GPerKm);
+  // Used vehicles: ACT charges zero-emission (AAA) rates for EVs, and one flat
+  // used-vehicle rate for everything else, which matches new-car category C.
+  const category = isUsed
+    ? (fuelType === 'ev' ? 'AAA' : 'C')
+    : estimateActEmissionsCategory(fuelType, petrolConsumption, co2GPerKm);
   const band = (asAt >= RATES_2027_START ? RATES_2027 : RATES_2025)[category];
 
   if (price <= LOW_CAP) return perHundred(price, band.base);
@@ -117,8 +122,8 @@ export function emissionsCategoryFor(car: EmissionsInputs): ActEmissionsCategory
   return estimateActEmissionsCategory(car.fuelType, car.petrolConsumption, car.co2GPerKm);
 }
 
-export function autoStampDutyFor(car: EmissionsInputs & Pick<CarConfig, 'purchasePrice'>): number {
-  return calculateActStampDuty(car.fuelType, car.purchasePrice, car.petrolConsumption, new Date(), car.co2GPerKm);
+export function autoStampDutyFor(car: EmissionsInputs & Pick<CarConfig, 'purchasePrice'> & Partial<Pick<CarConfig, 'isUsed'>>): number {
+  return calculateActStampDuty(car.fuelType, car.purchasePrice, car.petrolConsumption, new Date(), car.co2GPerKm, car.isUsed ?? false);
 }
 
 /**

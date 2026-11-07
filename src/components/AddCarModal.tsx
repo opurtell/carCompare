@@ -6,7 +6,7 @@ import { mergeResearchResultToConfig } from '../utils/carConfigMerger';
 import { ACT_CTP_PREMIUM, autoRegoFor, autoStampDutyFor, emissionsCategoryFor } from '../calculations/actSpecific';
 import { CATALOGUE_AS_OF, type CatalogueVehicle } from '../data/vehicleCatalogue';
 import { searchCatalogue } from '../utils/searchCatalogue';
-import { DEPRECIATION_DEFAULTS } from '../data/defaults';
+import { depreciationDefaultsFor } from '../data/defaults';
 import type { CarConfig, FuelType } from '../types/car';
 import { formatCurrency } from '../utils/formatters';
 import { NumberInput } from './ui/NumberInput';
@@ -49,11 +49,15 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
     model: string;
     year: number;
     trim: string;
+    condition: 'new' | 'used';
+    odometerKm: string;
   }>({
     make: '',
     model: '',
     year: new Date().getFullYear(),
     trim: '',
+    condition: 'new',
+    odometerKm: '',
   });
   const [query, setQuery] = useState('');
   const [origin, setOrigin] = useState<Origin>('catalogue');
@@ -89,6 +93,9 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
           model: formData.model.trim(),
           year: formData.year,
           trim: formData.trim.trim() || undefined,
+          ...(formData.condition === 'used'
+            ? { condition: 'used' as const, odometerKm: parseOdometer(formData.odometerKm) }
+            : {}),
           // Duty, rego and CTP are calculated by the app for the ACT.
           state: 'ACT',
         },
@@ -109,6 +116,11 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
       setErrorCode(e instanceof ResearchApiError ? e.code : null);
       setStage('input');
     }
+  }
+
+  function parseOdometer(text: string): number | undefined {
+    const km = parseInt(text.replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(km) && km > 0 && km <= 1_000_000 ? km : undefined;
   }
 
   function withUniqueName(config: CarConfig): CarConfig {
@@ -185,8 +197,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
         electricConsumption: (fuelType === 'ev' || fuelType === 'phev') ? (fuelType === 'ev' ? 15 : 18) : 0,
         phevElectricPercent: fuelType === 'phev' ? 60 : 0,
         co2GPerKm: fuelType === 'ev' ? undefined : carConfig.co2GPerKm,
-        firstYearDepreciationPercent: DEPRECIATION_DEFAULTS[fuelType].firstYear,
-        annualDepreciationPercent: DEPRECIATION_DEFAULTS[fuelType].annual,
+        ...depreciationDefaultsFor(fuelType, carConfig.isUsed),
       });
     }
   }
@@ -242,6 +253,22 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             <>
               <p className="text-xs text-gray-500 mb-3">✨ Look it up: AI searches the web for its price, fuel use and running costs.</p>
               <div className="space-y-3">
+                <div role="radiogroup" aria-label="New or used" className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+                  {(['new', 'used'] as const).map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.condition === c}
+                      onClick={() => setFormData({ ...formData, condition: c })}
+                      className={`min-h-10 md:min-h-0 py-1.5 text-sm rounded-md transition-colors ${
+                        formData.condition === c ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-600'
+                      }`}
+                    >
+                      {c === 'new' ? 'New' : 'Used'}
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1" htmlFor="ai-make">Make <span className="text-red-500">*</span></label>
@@ -274,6 +301,21 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
                     <input id="ai-trim" type="text" value={formData.trim} onChange={e => setFormData({ ...formData, trim: e.target.value })} placeholder="e.g., GXL Hybrid" className={inputClass} />
                   </div>
                 </div>
+                {formData.condition === 'used' && (
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1" htmlFor="ai-km">Odometer <span className="text-gray-400">(optional)</span></label>
+                    <input
+                      id="ai-km"
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.odometerKm}
+                      onChange={e => setFormData({ ...formData, odometerKm: e.target.value })}
+                      placeholder="e.g., 60000 km"
+                      className={inputClass}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">The price is estimated from current second-hand listings for this year and km.</p>
+                  </div>
+                )}
               </div>
               {error && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -312,7 +354,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
       <div className="flex flex-col items-center justify-center py-12">
         <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4" />
         <p className="text-gray-700 font-medium">
-          Researching {formData.make} {formData.model} {formData.year}
+          Researching {formData.condition === 'used' ? 'used ' : ''}{formData.make} {formData.model} {formData.year}
         </p>
         <p className="text-sm text-gray-500 mt-1">
           Searching the web for its price, fuel use and running costs...
@@ -359,7 +401,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
               <div className="text-2xl font-bold text-purple-700">
                 {formatCurrency(carConfig.purchasePrice)}
               </div>
-              <div className="text-xs text-gray-500">Purchase Price</div>
+              <div className="text-xs text-gray-500">{carConfig.isUsed ? 'Used price estimate' : 'Purchase Price'}</div>
             </div>
           </div>
 
@@ -507,12 +549,19 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
             step={1000}
             min={0}
           />
+          <ToggleSwitch
+            label="Used car"
+            checked={carConfig.isUsed ?? false}
+            onChange={v => handleUpdateConfig({ isUsed: v, ...depreciationDefaultsFor(carConfig.fuelType, v) })}
+          />
           <NumberInput
             label="Stamp Duty"
             value={carConfig.useCustomStampDuty ? carConfig.stampDuty : autoStampDutyFor(carConfig)}
             onChange={v => handleUpdateConfig({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
-            tooltip="Calculated from ACT emissions-based duty. Edit to override."
+            tooltip={carConfig.isUsed
+              ? 'Calculated from ACT used-vehicle duty rates. Edit to override.'
+              : 'Calculated from ACT emissions-based duty. Edit to override.'}
           />
           {carConfig.fuelType !== 'ev' && (
             <NumberInput

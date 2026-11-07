@@ -23,7 +23,8 @@ Australian car cost-of-ownership comparison tool built with React 19, TypeScript
 - `CarCalculationResult` contains `yearlyBreakdowns[]` with per-year fuel, servicing, insurance, ctp, registration, loanInterest, depreciation, vehicleValue
 - `CarCard.tsx` derives summary values inline from the calculation result — no engine changes needed for display-only features
 - Stamp duty, rego and CTP are calculated unless the car's `useCustomStampDuty` / `useCustomRego` / `useCustomCtp` is set; `resolveCarConfig` fills rego and CTP before the engine runs
-- Depreciation: `firstYearDepreciationPercent` in year 1, then `annualDepreciationPercent` each year (`vehicleValueAfter`)
+- Depreciation: `firstYearDepreciationPercent` in year 1, then `annualDepreciationPercent` each year (`vehicleValueAfter`). Use `depreciationDefaultsFor(fuelType, isUsed)`; a used car has first year = annual.
+- `CarConfig.isUsed` (optional): ACT used-vehicle duty (EV → AAA rates, everything else → category C rates); rego still uses the real emissions category
 - Saved cars are migrated in `useLocalStorage.ts` `migrateCar` — add a fallback there for every new `CarConfig` field
 - The cost breakdown dropdown in CarCard shows: Input Cost (Purchase + Duty, Running Costs), Depreciation (Remaining Value), Net at Resale
 
@@ -73,6 +74,7 @@ The app is mobile-first. Below `md`, `App.tsx` shows one view at a time through 
 - Browser → `POST /api/research` → Worker → provider. The key is the Worker secret `AI_API_KEY`.
 - Config: `wrangler.jsonc` `vars` → `AI_PROVIDER` (gemini | openai | anthropic | zai | custom), `AI_MODEL`, optional `AI_ENDPOINT` (required for custom). Default is Gemini with Google Search grounding (`gemini-2.5-flash`, free grounded tier); grounding sources come back as `citations`.
 - The AI returns car facts only (price, fuel use, CO2, tare, servicing, insurance). It never sets duty, rego or CTP.
+- Used cars: the form sends `condition: 'used'` and optional `odometerKm`; the prompt then asks for a second-hand price estimate and the result has `isUsed`. The cache key includes a 10,000 km band.
 - Results are cached per car for 30 days with the Workers Cache API (`researchCacheKey`; bump `CACHE_VERSION` when the prompt or result shape changes).
 - Local dev: secrets in `.dev.vars` (gitignored; see `.dev.vars.example`).
 - Rate limit: `RESEARCH_RATE_LIMITER` binding, 5 requests/min per IP. Cross-origin POSTs are rejected.

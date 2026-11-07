@@ -39,6 +39,7 @@ with a built-in catalogue of popular cars and an optional AI lookup (Gemini + Go
 - The browser posts `{ make, model, year, trim?, state }` to `/api/research`.
 - The Worker (`worker/index.ts`) validates input, rate-limits per IP, checks its 30-day cache, builds the prompt, calls the provider with the `AI_API_KEY` secret, and returns a sanitised result.
 - The AI only returns facts about the car. Stamp duty, rego and CTP are calculated in the app from ACT rules.
+- Used cars: choose Used and (optionally) the odometer. The AI estimates today's second-hand price from listings and guide prices; the app applies ACT used-vehicle duty and skips the new-car first-year depreciation drop. Any card can be switched to "Used car".
 - The API key never ships to the browser.
 
 ## Deploying
