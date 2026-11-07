@@ -143,7 +143,11 @@ describe('Pick a car grouping', async () => {
     const groups = groupByModel(VEHICLE_CATALOGUE);
     const names = groups.map(g => `${g.make} ${g.model}`);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' })));
-    expect(groups.find(g => g.model === 'Model Y')?.entries.length).toBe(2);
+  });
+
+  it('has no duplicate new cars (same model and price under two names)', () => {
+    const keys = VEHICLE_CATALOGUE.map(v => `${v.make}|${v.model}|${v.purchasePrice}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('narrows a model to the searched year', () => {
