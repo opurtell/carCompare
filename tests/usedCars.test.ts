@@ -116,6 +116,15 @@ describe('used-car catalogue', async () => {
     }
   });
 
+  it('has at most one entry per model, year and fuel type, all 2014–2025', () => {
+    const keys = USED_CATALOGUE.map(v => `${v.make}|${v.model}|${v.year}|${v.fuelType}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(USED_CATALOGUE.every(v => (v.year ?? 0) >= 2014 && (v.year ?? 0) <= 2025)).toBe(true);
+    // Popular models run unbroken across the range.
+    const corollaYears = USED_CATALOGUE.filter(v => v.model === 'Corolla' && v.fuelType === 'petrol').map(v => v.year);
+    expect(corollaYears).toEqual([2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]);
+  });
+
   it('finds used cars by year', () => {
     const hits = searchCatalogue('2019 mazda', USED_CATALOGUE);
     expect(hits.length).toBeGreaterThan(0);
