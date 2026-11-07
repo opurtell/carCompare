@@ -6,12 +6,13 @@ import { autoRegoFor } from '../calculations/actSpecific';
 /**
  * Car facts from research (AI lookup or the built-in catalogue) on top of the fuel-type defaults.
  * Stamp duty, rego and CTP stay on auto: the app calculates them from the ACT rules using the
- * car's CO2 and tare. A missing (0) servicing or insurance figure keeps the default.
+ * car's CO2 and tare. A used car gets the used duty rates and no first-year drop.
+ * A missing (0) servicing or insurance figure keeps the default.
  */
 export function mergeResearchResultToConfig(
   research: Pick<ResearchResult,
     'name' | 'fuelType' | 'purchasePrice' | 'petrolConsumption' | 'electricConsumption' |
-    'co2GPerKm' | 'tareKg' | 'servicingCostPerYear' | 'insurancePerYear'>,
+    'co2GPerKm' | 'tareKg' | 'servicingCostPerYear' | 'insurancePerYear'> & Partial<Pick<ResearchResult, 'isUsed'>>,
   globalDefaults: GlobalDefaults,
 ): CarConfig {
   const base = createDefaultCarConfig(research.fuelType);
@@ -32,6 +33,11 @@ export function mergeResearchResultToConfig(
     electricityPrice: globalDefaults.electricityPrice,
     annualKm: globalDefaults.annualKm,
   };
+  if (research.isUsed) {
+    car.isUsed = true;
+    // The big first-year drop has already happened for a second-hand car.
+    car.firstYearDepreciationPercent = car.annualDepreciationPercent;
+  }
   car.regoPerYear = autoRegoFor(car);
   return car;
 }

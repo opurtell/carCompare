@@ -9,7 +9,7 @@ import { formatCurrency } from '../utils/formatters';
 import { getCarColor } from '../utils/colors';
 import { calculateCarResult } from '../calculations/costEngine';
 import { ACT_CTP_PREMIUM, autoRegoFor, autoStampDutyFor, emissionsCategoryFor } from '../calculations/actSpecific';
-import { createDefaultCarConfig } from '../data/defaults';
+import { createDefaultCarConfig, depreciationDefaultsFor } from '../data/defaults';
 import { resolveCarConfig } from '../utils/resolveCarConfig';
 import { useApp } from '../state/AppContext';
 import { isCarDirtyFromLibrary } from '../utils/isCarDirty';
@@ -69,8 +69,7 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
       evFreeRegoYears: defaults.evFreeRegoYears,
       // CO2 belongs to the old powertrain; the rego and duty category is re-estimated.
       co2GPerKm: fuelType === 'ev' ? undefined : car.co2GPerKm,
-      firstYearDepreciationPercent: defaults.firstYearDepreciationPercent,
-      annualDepreciationPercent: defaults.annualDepreciationPercent,
+      ...depreciationDefaultsFor(fuelType, car.isUsed),
     });
   }
 
@@ -160,12 +159,19 @@ export function CarCard({ car, index, isActive, comparisonYears, globalDefaults,
             step={1000}
             min={0}
           />
+          <ToggleSwitch
+            label="Used car"
+            checked={car.isUsed ?? false}
+            onChange={v => update({ isUsed: v, ...depreciationDefaultsFor(car.fuelType, v) })}
+          />
           <NumberInput
             label="Stamp Duty"
             value={car.useCustomStampDuty ? car.stampDuty : autoStampDuty}
             onChange={v => update({ stampDuty: v, useCustomStampDuty: true })}
             prefix="$"
-            tooltip={`Auto-calculated using ACT emissions-based duty (category ${emissionsCategory}). Edit to override.`}
+            tooltip={car.isUsed
+              ? 'Auto-calculated using ACT used-vehicle duty rates. Edit to override.'
+              : `Auto-calculated using ACT emissions-based duty (category ${emissionsCategory}). Edit to override.`}
           />
           {car.useCustomStampDuty && (
             <div className="flex justify-end -mt-1">

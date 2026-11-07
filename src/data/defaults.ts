@@ -24,6 +24,15 @@ export const DEPRECIATION_DEFAULTS: Record<FuelType, { firstYear: number; annual
   petrol: { firstYear: 20, annual: 10 },
 };
 
+/** Depreciation rates for a fuel type. A used car has already taken the first-year drop. */
+export function depreciationDefaultsFor(fuelType: FuelType, isUsed = false) {
+  const d = DEPRECIATION_DEFAULTS[fuelType];
+  return {
+    firstYearDepreciationPercent: isUsed ? d.annual : d.firstYear,
+    annualDepreciationPercent: d.annual,
+  };
+}
+
 const FUEL_TYPE_DEFAULTS: Record<FuelType, Partial<CarConfig>> = {
   ev: {
     petrolConsumption: 0,

@@ -13,7 +13,7 @@ export function getIntroSteps(isDesktop: boolean): IntroStep[] {
       points: [
         'Compare up to 5 cars over 1 to 10 years, including purchase, stamp duty, fuel, servicing, insurance, rego, CTP and loan interest.',
         'Pick a car fills in a popular model for you: price, fuel use, CO₂, weight and servicing, with links to where each figure came from.',
-        'Not in the list? When the AI service is available, Pick a car can look it up on the web. Check what it finds, especially insurance.',
+        'Not in the list? When the AI service is available, Pick a car can look it up on the web, new or used (with a second-hand price estimate). Check what it finds, especially insurance.',
         isDesktop
           ? 'Or click Add Car for a card with typical values, then type in your own figures.'
           : 'Or tap Add Car on the Cars tab for a card with typical values, then open each section to type in your own figures.',
