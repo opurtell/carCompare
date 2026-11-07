@@ -5,7 +5,7 @@ export function searchCatalogue(query: string, catalogue: CatalogueVehicle[] = V
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return catalogue;
   return catalogue.filter(v => {
-    const hay = `${v.make} ${v.model} ${v.variant} ${v.fuelType}`.toLowerCase();
+    const hay = `${v.year ?? ""} ${v.make} ${v.model} ${v.variant} ${v.fuelType}`.toLowerCase();
     return words.every(w => hay.includes(w));
   });
 }

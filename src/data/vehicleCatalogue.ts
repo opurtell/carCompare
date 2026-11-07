@@ -20,6 +20,10 @@ export interface CatalogueVehicle {
   co2GPerKm?: number;
   tareKg?: number;
   servicingCostPerYear?: number;
+  /** Used cars only (see usedCatalogue.ts): model year, and the guide's low and high price. */
+  year?: number;
+  isUsed?: boolean;
+  priceRange?: [number, number];
   sources: { price?: string; specs?: string; servicing?: string };
 }
 

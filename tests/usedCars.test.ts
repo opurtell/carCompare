@@ -88,3 +88,31 @@ describe('used-car lookup', () => {
     expect(sanitizeResearchResult(raw, { ...used, condition: undefined }).isUsed).toBe(false);
   });
 });
+
+describe('used-car catalogue', async () => {
+  const { USED_CATALOGUE } = await import('../src/data/usedCatalogue');
+  const { VEHICLE_CATALOGUE } = await import('../src/data/vehicleCatalogue');
+  const { searchCatalogue } = await import('../src/utils/searchCatalogue');
+
+  it('has sane used entries with unique ids and a price inside the guide range', () => {
+    expect(USED_CATALOGUE.length).toBeGreaterThanOrEqual(20);
+    const ids = [...USED_CATALOGUE, ...VEHICLE_CATALOGUE].map(v => v.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const v of USED_CATALOGUE) {
+      expect(v.isUsed).toBe(true);
+      expect(v.year).toBeGreaterThanOrEqual(2015);
+      const [lo, hi] = v.priceRange!;
+      expect(v.purchasePrice).toBeGreaterThanOrEqual(lo);
+      expect(v.purchasePrice).toBeLessThanOrEqual(hi);
+      if (v.fuelType === 'ev') expect(v.electricConsumption).toBeGreaterThan(0);
+      else expect(v.petrolConsumption).toBeGreaterThan(0);
+      expect(v.sources.price).toMatch(/^https:\/\/www\.carsguide\.com\.au\//);
+    }
+  });
+
+  it('finds used cars by year', () => {
+    const hits = searchCatalogue('2019 mazda', USED_CATALOGUE);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every(v => v.year === 2019 && v.make === 'Mazda')).toBe(true);
+  });
+});
