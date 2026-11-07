@@ -73,6 +73,7 @@ The app is mobile-first. Below `md`, `App.tsx` shows one view at a time through 
 
 - Pick a car shows the built-in catalogue first; the AI lookup is the fallback for cars not in it.
 - `CataloguePicker` lists each make and model once (`groupByModel` in `src/utils/searchCatalogue.ts`), with search and fuel chips; tapping a model shows its years (used) or variants (new), and a model with one match picks straight away. "Enter details yourself" opens the edit form with typical values.
+- Add Car (dashed card, phone "+ Add" chip) opens `AddCarModal` with `startAt="choose"`: pick from the list, or enter details yourself. The header's Pick a car opens the list directly.
 - `AddCarModal` keeps the picker state and each view's scroll position, so Back returns to where you were. Summary and edit actions sit in the `Modal` footer.
 - Browser → `POST /api/research` → Worker → provider. The key is the Worker secret `AI_API_KEY`.
 - Config: `wrangler.jsonc` `vars` → `AI_PROVIDER` (gemini | openai | anthropic | zai | custom), `AI_MODEL`, optional `AI_ENDPOINT` (required for custom). Default is Gemini with Google Search grounding (`gemini-2.5-flash`, free grounded tier); grounding sources come back as `citations`.

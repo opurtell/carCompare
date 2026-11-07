@@ -15,8 +15,8 @@ export function getIntroSteps(isDesktop: boolean): IntroStep[] {
         'Pick a car fills in a popular model for you: price, fuel use, CO₂, weight and servicing, with links to where each figure came from.',
         'Not in the list? When the AI service is available, Pick a car can look it up on the web, new or used (with a second-hand price estimate). Check what it finds, especially insurance.',
         isDesktop
-          ? 'Or click Add Car for a card with typical values, then type in your own figures.'
-          : 'Or tap Add Car on the Cars tab for a card with typical values, then open each section to type in your own figures.',
+          ? 'Add Car asks whether to pick from the list or enter the details yourself, starting from typical values.'
+          : 'Add Car on the Cars tab asks whether to pick from the list or enter the details yourself, starting from typical values.',
         'Results are ACT-focused estimates, not quotes.',
       ],
     },

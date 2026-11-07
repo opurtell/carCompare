@@ -22,6 +22,8 @@ interface AddCarModalProps {
   onClose: () => void;
   /** The AI lookup only shows when the Worker reports an AI key. */
   aiAvailable: boolean;
+  /** 'choose' (from Add Car) first asks: pick from the list, or enter details yourself. */
+  startAt?: 'choose' | 'input';
 }
 
 interface SourceLink {
@@ -41,11 +43,11 @@ const SOURCE_LABELS: Record<string, string> = {
   insurance: 'Insurance',
 };
 
-type ModalStage = 'input' | 'loading' | 'summary' | 'expanded';
+type ModalStage = 'choose' | 'input' | 'loading' | 'summary' | 'expanded';
 
-export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
+export function AddCarModal({ onClose, aiAvailable, startAt = 'input' }: AddCarModalProps) {
   const { state, addCar } = useApp();
-  const [stage, setStage] = useState<ModalStage>('input');
+  const [stage, setStage] = useState<ModalStage>(startAt);
   const [formData, setFormData] = useState<{
     make: string;
     model: string;
@@ -362,6 +364,41 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
         {atCap && (
           <p className="mt-3 text-xs text-gray-500 text-center">Remove a car from the comparison to add another.</p>
         )}
+      </div>
+    );
+  }
+
+  function renderChooseStage() {
+    const option =
+      'w-full min-h-16 px-4 py-3 flex items-center gap-3 text-left rounded-xl border-2 transition-colors ' +
+      'disabled:opacity-40 disabled:cursor-not-allowed';
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setStage('input')}
+          disabled={atCap}
+          className={`${option} border-purple-200 bg-purple-50 hover:border-purple-400`}
+        >
+          <span className="text-2xl" aria-hidden="true">🔎</span>
+          <span>
+            <span className="block font-medium text-gray-800">Pick from the list</span>
+            <span className="block text-sm text-gray-500">Popular new and used cars, with price and fuel use filled in.</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={handleStartBlank}
+          disabled={atCap}
+          className={`${option} border-gray-200 bg-white hover:border-gray-400`}
+        >
+          <span className="text-2xl" aria-hidden="true">✏️</span>
+          <span>
+            <span className="block font-medium text-gray-800">Enter details yourself</span>
+            <span className="block text-sm text-gray-500">Start from typical values and type in your car&rsquo;s figures.</span>
+          </span>
+        </button>
+        {atCap && <p className="text-xs text-gray-500 text-center">Remove a car from the comparison to add another.</p>}
       </div>
     );
   }
@@ -768,7 +805,7 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
   /** Summary and edit actions sit in the sheet's footer so Add is always in reach. */
   function renderFooter() {
     if (stage !== 'summary' && stage !== 'expanded') return undefined;
-    const back = stage === 'expanded' && origin !== 'blank' ? 'summary' : 'input';
+    const back = stage === 'expanded' && origin !== 'blank' ? 'summary' : origin === 'blank' ? startAt : 'input';
     return (
       <div className="px-5 py-3 border-t border-gray-200">
         <div className="flex gap-2 md:gap-3">
@@ -806,12 +843,9 @@ export function AddCarModal({ onClose, aiAvailable }: AddCarModalProps) {
       onClose={onClose}
       bodyRef={bodyRef}
       footer={renderFooter()}
-      title={
-        <>
-          <span>Pick a car</span>
-        </>
-      }
+      title={stage === 'choose' || (origin === 'blank' && stage === 'expanded') ? 'Add a car' : 'Pick a car'}
     >
+      {stage === 'choose' && renderChooseStage()}
       {stage === 'input' && renderInputStage()}
       {stage === 'loading' && renderLoadingStage()}
       {stage === 'summary' && renderSummaryStage()}
