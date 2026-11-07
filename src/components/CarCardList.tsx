@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { CarCard } from './CarCard';
-import { createDefaultCarConfig } from '../data/defaults';
 import { LibraryModal } from './LibraryModal';
 import { AddCarModal } from './AddCarModal';
 import { isAiAvailable } from '../api/carResearchApi';
 import { getCarColor } from '../utils/colors';
 
 export function CarCardList() {
-  const { state, addCar, updateCar, removeCar } = useApp();
+  const { state, updateCar, removeCar } = useApp();
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [addCarModalOpen, setAddCarModalOpen] = useState(false);
+  const [addCarModal, setAddCarModal] = useState<'choose' | 'input' | null>(null);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [activeCarId, setActiveCarId] = useState<string | null>(null);
   const [prevCarCount, setPrevCarCount] = useState(state.cars.length);
@@ -21,8 +20,8 @@ export function CarCardList() {
     if (state.cars.length > prevCarCount) setActiveCarId(state.cars[state.cars.length - 1].id);
   }
   const visibleCarId = state.cars.some(c => c.id === activeCarId) ? activeCarId : state.cars[0]?.id;
-  const addDefaultCar = () =>
-    addCar(createDefaultCarConfig(state.cars.length === 0 ? 'ev' : 'petrol', state.cars.map(c => c.name)));
+  // Add Car asks first: pick from the list, or enter details yourself.
+  const openAddCar = () => setAddCarModal('choose');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,7 +38,7 @@ export function CarCardList() {
         <h2 className="text-lg font-semibold text-gray-700">Configure Cars</h2>
         <div className="flex gap-2">
         <button
-          onClick={() => setAddCarModalOpen(true)}
+          onClick={() => setAddCarModal('input')}
           disabled={state.cars.length >= 5}
           className="text-xs px-3 py-1.5 min-h-10 md:min-h-0 whitespace-nowrap rounded-md bg-purple-50 text-purple-700
                      hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5
@@ -92,7 +91,7 @@ export function CarCardList() {
             {state.cars.length < 5 && (
               <button
                 type="button"
-                onClick={addDefaultCar}
+                onClick={openAddCar}
                 className="min-h-10 shrink-0 px-3 rounded-full border-2 border-dashed border-gray-300
                            text-sm font-medium text-gray-500"
               >
@@ -119,7 +118,7 @@ export function CarCardList() {
 
         {state.cars.length < 5 && (
           <button
-            onClick={addDefaultCar}
+            onClick={openAddCar}
             className={`${state.cars.length === 0 ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 rounded-xl
                        border-2 border-dashed border-gray-300
                        flex-col items-center justify-center gap-2 text-gray-400
@@ -133,7 +132,9 @@ export function CarCardList() {
       </div>
 
       {libraryOpen && <LibraryModal onClose={() => setLibraryOpen(false)} />}
-      {addCarModalOpen && <AddCarModal aiAvailable={aiAvailable} onClose={() => setAddCarModalOpen(false)} />}
+      {addCarModal && (
+        <AddCarModal startAt={addCarModal} aiAvailable={aiAvailable} onClose={() => setAddCarModal(null)} />
+      )}
     </>
   );
 }
